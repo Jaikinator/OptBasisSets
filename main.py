@@ -18,13 +18,12 @@ basis = [dqc.loadbasis("1:3-21G"), dqc.loadbasis("1:3-21G")]
 #     ]
 
 
-bpacker = xt.Packer(basis[0:2])
+bpacker = xt.Packer(basis)
 bparams = bpacker.get_param_tensor()
 
 rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False),dqc.loadbasis("1:cc-pvdz", requires_grad=False)]
 
 bparams_rest = xt.Packer(rest_basis).get_param_tensor()
-
 #basis_2 = [dqc.loadbasis("1:3-21G"), dqc.loadbasis("1:3-21G"),dqc.loadbasis("1:cc-pvdz"),dqc.loadbasis("1:cc-pvdz") ]
 #bpacker = xt.Packer(basis_2)
 #bparams = bpacker.get_param_tensor()
@@ -44,7 +43,7 @@ def fcn(bparams, bpacker):
         for i in range(len(basis))
     ]
     wrap = dqc.hamilton.intor.LibcintWrapper(atombases)
-    #print(intor.overlap(wrap))
+    print(intor.overlap(wrap))
     return -torch.sum(intor.overlap(wrap))
 
 
@@ -57,7 +56,7 @@ min_bparams = xitorch.optimize.minimize(fcn, bparams, (bpacker,), method="Adam",
 
 basis = bpacker.construct_from_tensor(min_bparams)
 # rest_basis_in =  bpacker.construct_from_tensor(bparams_rest)
-basis = basis_st + rest_basis
+basis = basis + rest_basis
 # m = dqc.Mol("H 1 0 0; H -1 0 0", basis = basis[0:2])
 atomzs, atompos = parse_moldesc("H 1 0 0; H -1 0 0")
 atomz = torch.cat([atomzs, atomzs])
