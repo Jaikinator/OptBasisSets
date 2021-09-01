@@ -6,8 +6,21 @@ import xitorch.optimize
 from dqc.utils.datastruct import AtomCGTOBasis
 import dqc.hamilton.intor as intor
 from dqc.api.parser import parse_moldesc
+####################################
+#check if GPU is used:
+# setting device on GPU if available, else CPU
+def cuda_device_checker(memory  = False):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if memory is False:
+        print(f"Using device: {device, torch.version.cuda}\n{torch.cuda.get_device_name(0)}")
+    else:
+        if device.type == 'cuda':
+            print('Memory Usage:')
+            print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
+            print('Cached:   ', round(torch.cuda.memory_reserved(0) / 1024 ** 3, 1), 'GB')
 
-########################################################################################################################
+cuda_device_checker()
+
 #create first basis set. (reference)
 
 basis = [dqc.loadbasis("1:3-21G"), dqc.loadbasis("1:3-21G")]
@@ -15,11 +28,18 @@ basis = [dqc.loadbasis("1:3-21G"), dqc.loadbasis("1:3-21G")]
 bpacker = xt.Packer(basis)
 bparams = bpacker.get_param_tensor()
 
+atomstruc = "H 1 0 0; H -1 0 0"
+atomzs, atompos = parse_moldesc(atomstruc)
+atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
+wrap = dqc.hamilton.intor.LibcintWrapper(
+        atombases)  # creates an wrapper object to pass informations on lower functions
+S = intor.overlap(wrap)
+
 ########################################################################################################################
 # create the second basis set to optimize
 
-rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False),dqc.loadbasis("1:cc-pvdz", requires_grad=False)]
-
+#rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False),dqc.loadbasis("1:cc-pvdz", requires_grad=False)]
+rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False)]
 bpacker_rest = xt.Packer(rest_basis)
 bparams_rest = bpacker_rest.get_param_tensor()
 
@@ -82,9 +102,9 @@ def crossoverlap_(atomstruc, basis):
 
     wrap = dqc.hamilton.intor.LibcintWrapper(
         atombases)  # creates an wrapper object to pass informations on lower functions
-
     return intor.overlap(wrap)
-def dens_mat_(atomstruc, basis):
+
+def dm_HF_(atomstruc, basis):
     """
     calulate the density matrix using mol type Objects.
     using Hartree_Fock type calc.
@@ -98,9 +118,9 @@ def dens_mat_(atomstruc, basis):
                 the same length as the number of atoms.
     :return:torch.trensor
     """
-    m = dqc.Mol(atomstruc, basis=basis)
-    qc = dqc.HF(m).run()
-    return qc.aodm()
+    m = dqc.Mol(atomstruc, basis = basis)
+    # qc = dqc.HF(m).run()
+    return dqc.HF(m).aodm()
 
 def fcn(bparams, bpacker):
     """
@@ -114,17 +134,21 @@ def fcn(bparams, bpacker):
     rest_basis = bpacker_rest.construct_from_tensor(bparams_rest)
     num_gauss= _num_gauss(basis, rest_basis)
     basis_cross = basis + rest_basis
-    atomstruc = "H 1 0 0; H -1 0 0"
+    atomstruc = "H 1 0 0" #"H 1 0 0; H -1 0 0"
 
     #calculate cross overlap matrix
     colap = crossoverlap_(atomstruc, basis_cross)
-    mixed_overlap = _old_new_basis_cross_mat_selcetor(colap, num_gauss)
-    new_b_overlap = _new_basis_cross_mat_selector(colap , num_gauss)
-    dm = dens_mat_(atomstruc, basis)
+    # mixed_overlap = _old_new_basis_cross_mat_selcetor(colap, num_gauss)
+    # new_b_overlap = _new_basis_cross_mat_selector(colap , num_gauss)
+    # dm = dm_HF_(atomstruc, basis)
 
-    return -torch.sum(colap)
+    #-torch.sum(colap)
 
-fcn(bparams, bpacker)
+    # maximize overlap
+    
+    return colap
+
+#fcn(bparams, bpacker)
 
 # print("Original basis")
 #
