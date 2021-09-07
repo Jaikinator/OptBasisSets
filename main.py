@@ -77,7 +77,7 @@ def _num_gauss(basis : list, restbasis : list):
 
     return [n_basis, n_restbasis]
 
-def cross_mat_selcetor(crossmat : torch.Tensor, num_gauss : list, direction : bool = True):
+def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
     """
     select the cross overlap matrix part.
     The corssoverlap is defined by the overlap between to basis sets.
@@ -92,26 +92,25 @@ def cross_mat_selcetor(crossmat : torch.Tensor, num_gauss : list, direction : bo
         - vertical crossoverlap (S_21)
     :param crossmat: crossoverlap mat
     :param num_gauss: number of gaussians in two basis
-    :param direction: is bool to calc horizontal or vertical part of the cross overlap matrix
+    :param direction: type str to select the specific crossoverlap
+                      you can choose between: S_11, S_12_,S_21, S_22
     :return: torch.tensor
     returns the cross overlap matrix between the new and the old basis func
     """
-    out_hor = crossmat[num_gauss[0]:, 0:(len(crossmat) - num_gauss[1])]
-    out_vert = crossmat[0:num_gauss[0], num_gauss[0]:]
-    if np.all(np.isclose(out_vert, out_hor.T)) != True:
-        print("attention your crossoverlaps are not similar")
-    if direction == True:
-        return out_hor
+
+    if direction == "S_11" :
+        return crossmat[0:num_gauss[0],0:num_gauss[0]]
+    elif direction == "S_12":
+        return crossmat[num_gauss[0]:, 0:(len(crossmat) - num_gauss[1])]
+    elif direction == "S_21":
+        return crossmat[0:num_gauss[0], num_gauss[0]:]
+    elif direction == "S_22":
+        return crossmat[num_gauss[0]:, num_gauss[0]:]
     else:
-        return out_vert
+        raise UnicodeError("no direction specified")
 
-def _new_basis_cross_mat_selector(crossmat : torch.Tensor, num_gauss : list):
-    return crossmat[0:num_gauss[0],0:num_gauss[0]]
 
-def _restbasis_cross_mat_selector(crossmat : torch.Tensor, num_gauss : list):
-    return crossmat[num_gauss[0]:, num_gauss[0]:]
-
-def crossoverlap_(atomstruc, basis):
+def _crossoverlap(atomstruc, basis):
     #calculate cross overlap matrix
     atomzs, atompos = parse_moldesc(atomstruc)
 
@@ -129,7 +128,7 @@ def crossoverlap_(atomstruc, basis):
         atombases)  # creates an wrapper object to pass informations on lower functions
     return intor.overlap(wrap)
 
-def dm_HF_(atomstruc, basis):
+def _dm_HF(atomstruc, basis):
     """
     calulate the density matrix using mol type Objects.
     using Hartree_Fock type calc.
@@ -147,7 +146,7 @@ def dm_HF_(atomstruc, basis):
     qc = dqc.HF(m).run()
     return qc.aodm()
 
-def coeff_mat_scf_(basis,atom):
+def _coeff_mat_scf(basis,atom):
     """
     just creates the overlap matrix for different input basis
     """
@@ -166,16 +165,16 @@ def coeff_mat_scf_(basis,atom):
     return torch.tensor(mf.mo_coeff)
 
 def _procetion_mat(coeff, colap, num_gauss):
-    mixed_hor_olap = _old_new_basis_cross_mat_selcetor(colap, num_gauss)
-    mixed_vert_olap = _old_new_basis_cross_mat_selcetor(colap, num_gauss, direction = False)
-    new_b_overlap = _new_basis_cross_mat_selector(colap, num_gauss)
-    restb_overlap = _restbasis_cross_mat_selector(colap, num_gauss)
-    coeff_scf = coeff
+    S_11 = _cross_selcet(colap, num_gauss, "S_11")
+    S_12 = _cross_selcet(colap, num_gauss, "S_12")
+    S_21 = _cross_selcet(colap, num_gauss, "S_21")
+    S_22 = _cross_selcet(colap, num_gauss, "S_22")
+    print(S_11.shape,S_12.shape,S_21.shape,S_22.shape)
 
-    s21_c = torch.matmul(mixed_hor_olap, coeff_scf)
-    s22_s21c = torch.matmul(torch.inverse(restb_overlap), s21_c)
-    s12_s22s21c = torch.matmul(mixed_vert_olap, s22_s21c)
-    return torch.matmul(coeff_scf.T,s12_s22s21c)
+    s21_c = torch.matmul(S_12, coeff)
+    s22_s21c = torch.matmul(torch.inverse(S_22), s21_c)
+    s12_s22s21c = torch.matmul(S_21, s22_s21c)
+    return torch.matmul(coeff.T,s12_s22s21c)
 
 def fcn(bparams, bpacker):
     """
@@ -192,8 +191,8 @@ def fcn(bparams, bpacker):
     atomstruc = "H 1 0 0; H -1 0 0"
 
     #calculate cross overlap matrix
-    colap = crossoverlap_(atomstruc, basis_cross)
-    coeff_mat = coeff_mat_scf_(basis_scf, atom_scf)
+    colap = _crossoverlap(atomstruc, basis_cross)
+    coeff_mat = _coeff_mat_scf(basis_scf, atom_scf)
 
 
     projection = _procetion_mat(coeff_mat,colap,num_gauss)
