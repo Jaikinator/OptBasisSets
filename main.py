@@ -165,11 +165,17 @@ def _coeff_mat_scf(basis,atom):
     return torch.tensor(mf.mo_coeff)
 
 def _procetion_mat(coeff, colap, num_gauss):
-    S_11 = _cross_selcet(colap, num_gauss, "S_11")
+    """
+    Calculate the Projection from the old to the new Basis:
+         P = C^T S_12 S⁻¹_22 S_21 C
+    :param coeff: coefficient matrix calc by pyscf (C Matrix in eq.)
+    :param colap: crossoverlap Matrix (S and his parts)
+    :param num_gauss: array with length of the basis sets
+    :return: Projection Matrix
+    """
     S_12 = _cross_selcet(colap, num_gauss, "S_12")
     S_21 = _cross_selcet(colap, num_gauss, "S_21")
     S_22 = _cross_selcet(colap, num_gauss, "S_22")
-    print(S_11.shape,S_12.shape,S_21.shape,S_22.shape)
 
     s21_c = torch.matmul(S_12, coeff)
     s22_s21c = torch.matmul(torch.inverse(S_22), s21_c)
