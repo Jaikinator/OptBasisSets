@@ -54,7 +54,7 @@ def get_ovlp_c(mol):
     mol_aux.unit = 'Bohr'
     return ovl
 
-basis = [dqc.loadbasis("1:3-21G"), dqc.loadbasis("1:3-21G")]
+basis = [dqc.loadbasis("1:3-21G",), dqc.loadbasis("1:3-21G")]
 print(dqc.loadbasis("1:3-21G"))
 bpacker = xt.Packer(basis)
 bparams = bpacker.get_param_tensor()

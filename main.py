@@ -1,3 +1,4 @@
+from pyscf import gto, scf
 import dqc
 import numpy as np
 import torch
@@ -6,6 +7,7 @@ import xitorch.optimize
 from dqc.utils.datastruct import AtomCGTOBasis
 import dqc.hamilton.intor as intor
 from dqc.api.parser import parse_moldesc
+
 ####################################
 #check if GPU is used:
 # setting device on GPU if available, else CPU
@@ -35,11 +37,18 @@ wrap = dqc.hamilton.intor.LibcintWrapper(
         atombases)  # creates an wrapper object to pass informations on lower functions
 S = intor.overlap(wrap)
 
+
+########################################################################################################################
+#pyscf stuff to calc coefficient Matrix
+atom_scf = [['H', [1.0, 0.0, 0.0]],
+            ['H', [-1.0, 0.0, 0.0]]]
+basis_scf = "3-21G"
+
 ########################################################################################################################
 # create the second basis set to optimize
 
-#rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False),dqc.loadbasis("1:cc-pvdz", requires_grad=False)]
-rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False)]
+rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False),dqc.loadbasis("1:cc-pvdz", requires_grad=False)]
+#rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False)]
 bpacker_rest = xt.Packer(rest_basis)
 bparams_rest = bpacker_rest.get_param_tensor()
 
@@ -68,23 +77,39 @@ def _num_gauss(basis : list, restbasis : list):
 
     return [n_basis, n_restbasis]
 
-def _old_new_basis_cross_mat_selcetor(crossmat : torch.Tensor, num_gauss : list):
+def cross_mat_selcetor(crossmat : torch.Tensor, num_gauss : list, direction : bool = True):
     """
-    select the cross overlap matrix that is relevant for next calc
+    select the cross overlap matrix part.
+    The corssoverlap is defined by the overlap between to basis sets.
+    For example is b1 the array of the first basis set and b2 the array of the second basisset
+    Then is the crossoveralp S:
+        S  = [b1*b1 , b1*b2] = [S_11 , S_12]
+             [b2*b1 , b2*b2]   [S_21 , S_22]
+    you can choose between:
+        - basis overlap (S_11)
+        - restbasis overlap (S_22)
+        - horizontal crossoverlap (S_12)
+        - vertical crossoverlap (S_21)
     :param crossmat: crossoverlap mat
     :param num_gauss: number of gaussians in two basis
+    :param direction: is bool to calc horizontal or vertical part of the cross overlap matrix
     :return: torch.tensor
-    returns the horizontal cross overlap matrix between the new and the old basis func
+    returns the cross overlap matrix between the new and the old basis func
     """
-
-    out_hor = crossmat[num_gauss[0]:,0:(len(crossmat)-num_gauss[1])]
+    out_hor = crossmat[num_gauss[0]:, 0:(len(crossmat) - num_gauss[1])]
     out_vert = crossmat[0:num_gauss[0], num_gauss[0]:]
-    if np.all(np.isclose(out_vert,out_hor.T))!= True:
+    if np.all(np.isclose(out_vert, out_hor.T)) != True:
         print("attention your crossoverlaps are not similar")
-    return out_hor
+    if direction == True:
+        return out_hor
+    else:
+        return out_vert
 
 def _new_basis_cross_mat_selector(crossmat : torch.Tensor, num_gauss : list):
     return crossmat[0:num_gauss[0],0:num_gauss[0]]
+
+def _restbasis_cross_mat_selector(crossmat : torch.Tensor, num_gauss : list):
+    return crossmat[num_gauss[0]:, num_gauss[0]:]
 
 def crossoverlap_(atomstruc, basis):
     #calculate cross overlap matrix
@@ -118,9 +143,39 @@ def dm_HF_(atomstruc, basis):
                 the same length as the number of atoms.
     :return:torch.trensor
     """
-    m = dqc.Mol(atomstruc, basis = basis)
-    # qc = dqc.HF(m).run()
-    return dqc.HF(m).aodm()
+    m = dqc.Mol(atomstruc, basis = basis, orthogonalize_basis = False)
+    qc = dqc.HF(m).run()
+    return qc.aodm()
+
+def coeff_mat_scf_(basis,atom):
+    """
+    just creates the overlap matrix for different input basis
+    """
+    mol = gto.Mole()
+    mol.atom = atom
+    mol.spin = 0
+    mol.unit = 'Bohr' # in Angstrom
+    mol.verbose = 6
+    mol.output = 'scf.out'
+    mol.symmetry = False
+    mol.basis = basis
+    mol.build()
+
+    mf = scf.RHF(mol)
+    mf.kernel()
+    return torch.tensor(mf.mo_coeff)
+
+def _procetion_mat(coeff, colap, num_gauss):
+    mixed_hor_olap = _old_new_basis_cross_mat_selcetor(colap, num_gauss)
+    mixed_vert_olap = _old_new_basis_cross_mat_selcetor(colap, num_gauss, direction = False)
+    new_b_overlap = _new_basis_cross_mat_selector(colap, num_gauss)
+    restb_overlap = _restbasis_cross_mat_selector(colap, num_gauss)
+    coeff_scf = coeff
+
+    s21_c = torch.matmul(mixed_hor_olap, coeff_scf)
+    s22_s21c = torch.matmul(torch.inverse(restb_overlap), s21_c)
+    s12_s22s21c = torch.matmul(mixed_vert_olap, s22_s21c)
+    return torch.matmul(coeff_scf.T,s12_s22s21c)
 
 def fcn(bparams, bpacker):
     """
@@ -134,21 +189,20 @@ def fcn(bparams, bpacker):
     rest_basis = bpacker_rest.construct_from_tensor(bparams_rest)
     num_gauss= _num_gauss(basis, rest_basis)
     basis_cross = basis + rest_basis
-    atomstruc = "H 1 0 0" #"H 1 0 0; H -1 0 0"
+    atomstruc = "H 1 0 0; H -1 0 0"
 
     #calculate cross overlap matrix
     colap = crossoverlap_(atomstruc, basis_cross)
-    # mixed_overlap = _old_new_basis_cross_mat_selcetor(colap, num_gauss)
-    # new_b_overlap = _new_basis_cross_mat_selector(colap , num_gauss)
-    # dm = dm_HF_(atomstruc, basis)
+    coeff_mat = coeff_mat_scf_(basis_scf, atom_scf)
 
-    #-torch.sum(colap)
+
+    projection = _procetion_mat(coeff_mat,colap,num_gauss)
 
     # maximize overlap
     
-    return colap
+    return projection
 
-#fcn(bparams, bpacker)
+
 
 # print("Original basis")
 #
@@ -180,5 +234,8 @@ def fcn(bparams, bpacker):
 # # wrap = dqc.hamilton.intor.LibcintWrapper(atombases)
 # #
 # # intor.overlap(wrap)
+if __name__ == "__main__":
+
+    print(fcn(bparams, bpacker))
 
 
