@@ -47,10 +47,11 @@ basis_scf = "3-21G"
 ########################################################################################################################
 # create the second basis set to optimize
 
-rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False),dqc.loadbasis("1:cc-pvdz", requires_grad=False)]
+rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False),dqc.loadbasis("1:cc-pvdz", requires_grad=False)] #cc-pvdz
 #rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False)]
 bpacker_rest = xt.Packer(rest_basis)
 bparams_rest = bpacker_rest.get_param_tensor()
+
 
 ########################################################################################################################
 def _num_gauss(basis : list, restbasis : list):
@@ -164,7 +165,7 @@ def _coeff_mat_scf(basis,atom):
     mf.kernel()
     return torch.tensor(mf.mo_coeff)
 
-def _procetion_mat(coeff, colap, num_gauss):
+def _maximise_overlap(coeff, colap, num_gauss):
     """
     Calculate the Projection from the old to the new Basis:
          P = C^T S_12 S⁻¹_22 S_21 C
@@ -173,6 +174,7 @@ def _procetion_mat(coeff, colap, num_gauss):
     :param num_gauss: array with length of the basis sets
     :return: Projection Matrix
     """
+
     S_12 = _cross_selcet(colap, num_gauss, "S_12")
     S_21 = _cross_selcet(colap, num_gauss, "S_21")
     S_22 = _cross_selcet(colap, num_gauss, "S_22")
@@ -181,6 +183,11 @@ def _procetion_mat(coeff, colap, num_gauss):
     s22_s21c = torch.matmul(torch.inverse(S_22), s21_c)
     s12_s22s21c = torch.matmul(S_21, s22_s21c)
     return torch.matmul(coeff.T,s12_s22s21c)
+########################################################################################################################
+#test
+#######################################################################################################################
+coeff_mat = _coeff_mat_scf(basis_scf, atom_scf)
+
 
 def fcn(bparams, bpacker):
     """
@@ -198,14 +205,13 @@ def fcn(bparams, bpacker):
 
     #calculate cross overlap matrix
     colap = _crossoverlap(atomstruc, basis_cross)
-    coeff_mat = _coeff_mat_scf(basis_scf, atom_scf)
-
-
-    projection = _procetion_mat(coeff_mat,colap,num_gauss)
+    coeff = coeff_mat
 
     # maximize overlap
-    
-    return projection
+
+    projection = _maximise_overlap(coeff,colap,num_gauss)
+
+    return torch.sum(projection)
 
 
 
@@ -213,8 +219,7 @@ def fcn(bparams, bpacker):
 #
 # print(basis[0:2])
 #
-# min_bparams = xitorch.optimize.minimize(fcn, bparams, (bpacker,), method="Adam",
-#                                          step=2e-3, maxiter=80, verbose=True)
+#min_bparams = xitorch.optimize.minimize(fcn, bparams, (bpacker,), method="Adam",step=2e-3, maxiter=80, verbose=True)
 #
 #
 # basis = bpacker.construct_from_tensor(min_bparams)
@@ -241,6 +246,8 @@ def fcn(bparams, bpacker):
 # # intor.overlap(wrap)
 if __name__ == "__main__":
 
-    print(fcn(bparams, bpacker))
+    min_bparams = xitorch.optimize.minimize(fcn, bparams, (bpacker,),
+                                            method="Adam",step=2e-3, maxiter=1000, verbose=True)
+
 
 
