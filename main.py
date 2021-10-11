@@ -9,6 +9,9 @@ from dqc.utils.datastruct import AtomCGTOBasis
 import dqc.hamilton.intor as intor
 from dqc.api.parser import parse_moldesc
 
+import pymatgen as mg
+import pymatgen.core.periodic_table as peri
+
 ####################################
 #check if GPU is used:
 # setting device on GPU if available, else CPU
@@ -23,6 +26,14 @@ def cuda_device_checker(memory  = False):
             print('Cached:   ', round(torch.cuda.memory_reserved(0) / 1024 ** 3, 1), 'GB')
 
 cuda_device_checker()
+########################################################################################################################
+### create a dictionary
+########################################################################################################################
+def generateElementdict():
+    elementdict = {}
+    for i in range(1, 100):  # 100 Elements in Dict
+        elementdict[peri.Element.from_Z(i).number] = str(peri.Element.from_Z(i))
+    return elementdict
 
 #create first basis set. (reference)
 
