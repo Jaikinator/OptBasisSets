@@ -1,4 +1,5 @@
 from pyscf import gto, scf
+from xitorch._core.pure_function import get_pure_function, make_sibling
 import dqc
 import numpy as np
 import torch
@@ -26,16 +27,16 @@ cuda_device_checker()
 #create first basis set. (reference)
 
 basis = [dqc.loadbasis("1:3-21G"), dqc.loadbasis("1:3-21G")]
-
 bpacker = xt.Packer(basis)
 bparams = bpacker.get_param_tensor()
 
 atomstruc = "H 1 0 0; H -1 0 0"
-atomzs, atompos = parse_moldesc(atomstruc)
-atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
-wrap = dqc.hamilton.intor.LibcintWrapper(
-        atombases)  # creates an wrapper object to pass informations on lower functions
-S = intor.overlap(wrap)
+
+# atomzs, atompos = parse_moldesc(atomstruc)
+# atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
+# wrap = dqc.hamilton.intor.LibcintWrapper(
+#         atombases)  # creates an wrapper object to pass informations on lower functions
+# S = intor.overlap(wrap)
 
 
 ########################################################################################################################
@@ -47,11 +48,10 @@ basis_scf = "3-21G"
 ########################################################################################################################
 # create the second basis set to optimize
 
-rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False),dqc.loadbasis("1:cc-pvdz", requires_grad=False)] #cc-pvdz
+rest_basis = [dqc.loadbasis("1:3-21G", requires_grad=False),dqc.loadbasis("1:3-21G", requires_grad=False)] #cc-pvdz
 #rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False)]
 bpacker_rest = xt.Packer(rest_basis)
 bparams_rest = bpacker_rest.get_param_tensor()
-
 
 ########################################################################################################################
 def _num_gauss(basis : list, restbasis : list):
@@ -129,41 +129,60 @@ def _crossoverlap(atomstruc, basis):
         atombases)  # creates an wrapper object to pass informations on lower functions
     return intor.overlap(wrap)
 
-def _dm_HF(atomstruc, basis):
-    """
-    calulate the density matrix using mol type Objects.
-    using Hartree_Fock type calc.
-    :param atomstruc: str or 2-elements tuple
-                    Description of the molecule system.
-                    If string, it can be described like ``"H 1 0 0; H -1 0 0"``.
-                    If tuple, the first element of the tuple is the Z number of the atoms while
-                    the second element is the position of the atoms: ``(atomzs, atomposs)``.
-    :param basis:str, CGTOBasis, list of str, or CGTOBasis
-                The string describing the gto basis. If it is a list, then it must have
-                the same length as the number of atoms.
-    :return:torch.trensor
-    """
-    m = dqc.Mol(atomstruc, basis = basis, orthogonalize_basis = False)
-    qc = dqc.HF(m).run()
-    return qc.aodm()
+# def _dm_HF(atomstruc, basis):
+#     """
+#     calulate the density matrix using mol type Objects.
+#     using Hartree_Fock type calc.
+#     :param atomstruc: str or 2-elements tuple
+#                     Description of the molecule system.
+#                     If string, it can be described like ``"H 1 0 0; H -1 0 0"``.
+#                     If tuple, the first element of the tuple is the Z number of the atoms while
+#                     the second element is the position of the atoms: ``(atomzs, atomposs)``.
+#     :param basis:str, CGTOBasis, list of str, or CGTOBasis
+#                 The string describing the gto basis. If it is a list, then it must have
+#                 the same length as the number of atoms.
+#     :return:torch.trensor
+#     """
+#     m = dqc.Mol(atomstruc, basis = basis, orthogonalize_basis = False)
+#     qc = dqc.HF(m).run()
+#     return qc.aodm()
 
-def _coeff_mat_scf(basis,atom):
-    """
-    just creates the overlap matrix for different input basis
-    """
-    mol = gto.Mole()
-    mol.atom = atom
-    mol.spin = 0
-    mol.unit = 'Bohr' # in Angstrom
-    mol.verbose = 6
-    mol.output = 'scf.out'
-    mol.symmetry = False
-    mol.basis = basis
-    mol.build()
+class system_scf:
 
-    mf = scf.RHF(mol)
-    mf.kernel()
-    return torch.tensor(mf.mo_coeff)
+    def __init__(self,basis, atom):
+        self.basis = basis
+        self.atom = atom
+        self.mol = self._create_scf_Mol()
+
+    def _create_scf_Mol(self):
+        mol = gto.Mole()
+        mol.atom = self.atom
+        mol.spin = 0
+        mol.unit = 'Bohr'  # in Angstrom
+        mol.verbose = 6
+        mol.output = 'scf.out'
+        mol.symmetry = False
+        mol.basis = self.basis
+        return mol.build()
+
+    def _coeff_mat_scf(self):
+        """
+        just creates the coefficiency matrix for different input basis
+        """
+
+        mf = scf.RHF(self.mol)
+        mf.kernel()
+        return torch.tensor(mf.mo_coeff[:, mf.mo_occ > 0.])
+
+    def _get_occ(self):
+        mf = scf.RHF(self.mol)
+        mf.kernel()
+        return torch.tensor(mf.get_occ())
+
+    # def occ_coeff_mat(self):
+    #     mf = scf.RHF(self.mol)
+    #     mf.kernel()
+    #     return torch.tensor(mf.mo_coeff) * torch.tensor(mf.get_occ())
 
 def _maximise_overlap(coeff, colap, num_gauss):
     """
@@ -178,16 +197,17 @@ def _maximise_overlap(coeff, colap, num_gauss):
     S_12 = _cross_selcet(colap, num_gauss, "S_12")
     S_21 = _cross_selcet(colap, num_gauss, "S_21")
     S_22 = _cross_selcet(colap, num_gauss, "S_22")
-
     s21_c = torch.matmul(S_12, coeff)
     s22_s21c = torch.matmul(torch.inverse(S_22), s21_c)
     s12_s22s21c = torch.matmul(S_21, s22_s21c)
-    return torch.matmul(coeff.T,s12_s22s21c)
+    P = torch.matmul(coeff.T, s12_s22s21c)
+    return P
+
 ########################################################################################################################
 #test
-#######################################################################################################################
-coeff_mat = _coeff_mat_scf(basis_scf, atom_scf)
-
+########################################################################################################################
+sys_scf = system_scf(basis_scf,atom_scf)
+occ = system_scf(basis_scf,atom_scf)._coeff_mat_scf()
 
 def fcn(bparams, bpacker):
     """
@@ -205,14 +225,14 @@ def fcn(bparams, bpacker):
 
     #calculate cross overlap matrix
     colap = _crossoverlap(atomstruc, basis_cross)
-    coeff = coeff_mat
+    coeff = occ
 
     # maximize overlap
 
     projection = _maximise_overlap(coeff,colap,num_gauss)
-
-    return torch.sum(projection)
-
+    projection = projection * sys_scf._get_occ()[sys_scf._get_occ() > 0]
+    #print(projection,sys_scf._get_occ())
+    return -torch.trace(projection)/torch.sum(sys_scf._get_occ())
 
 
 # print("Original basis")
@@ -244,10 +264,23 @@ def fcn(bparams, bpacker):
 # # wrap = dqc.hamilton.intor.LibcintWrapper(atombases)
 # #
 # # intor.overlap(wrap)
-if __name__ == "__main__":
 
-    min_bparams = xitorch.optimize.minimize(fcn, bparams, (bpacker,),
-                                            method="Adam",step=2e-3, maxiter=1000, verbose=True)
+if __name__ == "__main__":
+    print(fcn(bparams,bpacker))
+
+
+
+    # def _min_fwd_fcn(y, *params):
+    #     pfunc = get_pure_function(fcn)
+    #     with torch.enable_grad():
+    #         y1 = y.clone().requiresgrad()
+    #         z = pfunc(y1, *params)
+    #     grady, = torch.autograd.grad(z, (y1,), retain_graph=True,
+    #                                  create_graph=torch.is_grad_enabled())
+
+    # min_bparams = xitorch.optimize.minimize(fcn, bparams, (bpacker,),
+    #                                         method = "Adam",step = 2e-3, maxiter = 1, verbose = True)
+
 
 
 
