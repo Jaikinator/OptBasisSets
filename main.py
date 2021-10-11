@@ -27,7 +27,7 @@ def cuda_device_checker(memory  = False):
 
 cuda_device_checker()
 ########################################################################################################################
-### create a dictionary
+### create a dictionary for the elements and their numbers in the periodic table.
 ########################################################################################################################
 def generateElementdict():
     elementdict = {}
