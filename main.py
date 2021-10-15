@@ -210,55 +210,7 @@ def _crossoverlap(atomstruc, basis):
         atombases)  # creates an wrapper object to pass informations on lower functions
     return intor.overlap(wrap)
 
-# def _dm_HF(atomstruc, basis):
-#     """
-#     calulate the density matrix using mol type Objects.
-#     using Hartree_Fock type calc.
-#     :param atomstruc: str or 2-elements tuple
-#                     Description of the molecule system.
-#                     If string, it can be described like ``"H 1 0 0; H -1 0 0"``.
-#                     If tuple, the first element of the tuple is the Z number of the atoms while
-#                     the second element is the position of the atoms: ``(atomzs, atomposs)``.
-#     :param basis:str, CGTOBasis, list of str, or CGTOBasis
-#                 The string describing the gto basis. If it is a list, then it must have
-#                 the same length as the number of atoms.
-#     :return:torch.trensor
-#     """
-#     m = dqc.Mol(atomstruc, basis = basis, orthogonalize_basis = False)
-#     qc = dqc.HF(m).run()
-#     return qc.aodm()
 
-class system_scf:
-
-    def __init__(self,basis, atom):
-        self.basis = basis
-        self.atom = atom
-        self.mol = self._create_scf_Mol()
-
-    def _create_scf_Mol(self):
-        mol = gto.Mole()
-        mol.atom = self.atom
-        mol.spin = 0
-        mol.unit = 'Bohr'  # in Angstrom
-        mol.verbose = 6
-        mol.output = 'scf.out'
-        mol.symmetry = False
-        mol.basis = self.basis
-        return mol.build()
-
-    def _coeff_mat_scf(self):
-        """
-        just creates the coefficiency matrix for different input basis
-        """
-
-        mf = scf.RHF(self.mol)
-        mf.kernel()
-        return torch.tensor(mf.mo_coeff[:, mf.mo_occ > 0.])
-
-    def _get_occ(self):
-        mf = scf.RHF(self.mol)
-        mf.kernel()
-        return torch.tensor(mf.get_occ())
 
 def _maximise_overlap(coeff, colap, num_gauss):
     """
