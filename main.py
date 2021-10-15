@@ -50,6 +50,7 @@ class dft_system:
         self.element_dict = self.generateElementdict()
         self.elements = self.get_element_arr()
 
+        self.mol = self._create_scf_Mol()
     ################################
     #dqc stuff:
     ################################
@@ -69,8 +70,12 @@ class dft_system:
     ################################
 
     def _create_scf_Mol(self):
+        """
+        be aware here just basis as a string works
+        :return: mol object
+        """
         mol = gto.Mole()
-        mol.atom = self.atom
+        mol.atom = self.atomstuc
         mol.spin = 0
         mol.unit = 'Bohr'  # in Angstrom
         mol.verbose = 6
@@ -118,8 +123,9 @@ atomstruc = [['H', [1.0, 0.0, 0.0]],
             ['H', [-1.0, 0.0, 0.0]]]
 basis = "3-21G"
 system = dft_system(basis, atomstruc)
+system_dqc = system.dqc()
 
-
+occ = system._coeff_mat_scf()
 
 ########################################################################################################################
 # create the second basis set to optimize
@@ -254,11 +260,6 @@ class system_scf:
         mf.kernel()
         return torch.tensor(mf.get_occ())
 
-    # def occ_coeff_mat(self):
-    #     mf = scf.RHF(self.mol)
-    #     mf.kernel()
-    #     return torch.tensor(mf.mo_coeff) * torch.tensor(mf.get_occ())
-
 def _maximise_overlap(coeff, colap, num_gauss):
     """
     Calculate the Projection from the old to the new Basis:
@@ -281,9 +282,7 @@ def _maximise_overlap(coeff, colap, num_gauss):
 ########################################################################################################################
 #test
 ########################################################################################################################
-sys_scf = system_scf(basis_scf,atom_scf)
-occ = system_scf(basis_scf,atom_scf)._coeff_mat_scf()
-print(occ)
+
 def fcn(bparams, bpacker):
     """
     Function to optimize
@@ -305,45 +304,13 @@ def fcn(bparams, bpacker):
     # maximize overlap
 
     projection = _maximise_overlap(coeff,colap,num_gauss)
-    projection = projection * sys_scf._get_occ()[sys_scf._get_occ() > 0]
+    projection = projection * system._get_occ()[system._get_occ() > 0]
     #print(projection,sys_scf._get_occ())
-    return -torch.trace(projection)/torch.sum(sys_scf._get_occ())
-
-
-# print("Original basis")
-#
-# print(basis[0:2])
-#
-#min_bparams = xitorch.optimize.minimize(fcn, bparams, (bpacker,), method="Adam",step=2e-3, maxiter=80, verbose=True)
-#
-#
-# basis = bpacker.construct_from_tensor(min_bparams)
-#
-# rest_basis_in = bpacker_rest.construct_from_tensor(bparams_rest)
-# basis = basis + rest_basis
-# # m = dqc.Mol("H 1 0 0; H -1 0 0", basis = basis[0:2])
-# atomzs, atompos = parse_moldesc("H 1 0 0; H -1 0 0")
-# atomz = torch.cat([atomzs, atomzs])
-# atompos = torch.cat([atompos, atompos])
-# # print("shapes:", atomz.shape, atompos.shape)
-# atombases = [
-#     AtomCGTOBasis(atomz=atomz[i], bases=basis[i], pos=atompos[i]) \
-#     for i in range(len(basis))
-# ]
-# wrap = dqc.hamilton.intor.LibcintWrapper(atombases)
-# #print(intor.overlap(wrap))
-# # print("Optimized basis")
-# # print(opt_basis)
-#
-#
-# # wrap = dqc.hamilton.intor.LibcintWrapper(atombases)
-# #
-# # intor.overlap(wrap)
+    return -torch.trace(projection)/torch.sum(system._get_occ())
 
 if __name__ == "__main__":
-    print(fcn(bparams,bpacker))
 
-
+    print(fcn(**system_dqc))
 
     # def _min_fwd_fcn(y, *params):
     #     pfunc = get_pure_function(fcn)
