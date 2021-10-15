@@ -121,39 +121,6 @@ system = dft_system(basis, atomstruc)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-basis = [dqc.loadbasis("1:3-21G"), dqc.loadbasis("1:3-21G")]
-bpacker = xt.Packer(basis)
-bparams = bpacker.get_param_tensor()
-
-atomstruc = [['H', [1.0, 0.0, 0.0]],
-            ['H', [-1.0, 0.0, 0.0]]]
-
-# atomzs, atompos = parse_moldesc(atomstruc)
-# atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
-# wrap = dqc.hamilton.intor.LibcintWrapper(
-#         atombases)  # creates an wrapper object to pass informations on lower functions
-# S = intor.overlap(wrap)
-
-
-########################################################################################################################
-#pyscf stuff to calc coefficient Matrix
-atom_scf = [['H', [1.0, 0.0, 0.0]],
-            ['H', [-1.0, 0.0, 0.0]]]
-basis_scf = "3-21G"
-
 ########################################################################################################################
 # create the second basis set to optimize
 
