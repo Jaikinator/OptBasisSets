@@ -257,7 +257,7 @@ def fcn(bparams, bpacker):
 
     projection = _maximise_overlap(coeff,colap,num_gauss)
     projection = projection * system._get_occ()[system._get_occ() > 0]
-    #print(projection,sys_scf._get_occ())
+
     return -torch.trace(projection)/torch.sum(system._get_occ())
 
 if __name__ == "__main__":
@@ -272,8 +272,8 @@ if __name__ == "__main__":
     #     grady, = torch.autograd.grad(z, (y1,), retain_graph=True,
     #                                  create_graph=torch.is_grad_enabled())
 
-    # min_bparams = xitorch.optimize.minimize(fcn, bparams, (bpacker,),
-    #                                         method = "Adam",step = 2e-3, maxiter = 1, verbose = True)
+    min_bparams = xitorch.optimize.minimize(fcn, system_dqc["bparams"], (system_dqc["bpacker"],),
+                                            method = "Adam",step = 2e-3, maxiter = 100, verbose = True)
 
 
 
