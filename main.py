@@ -29,19 +29,117 @@ cuda_device_checker()
 ########################################################################################################################
 ### create a dictionary for the elements and their numbers in the periodic table.
 ########################################################################################################################
-def generateElementdict():
-    elementdict = {}
-    for i in range(1, 100):  # 100 Elements in Dict
-        elementdict[peri.Element.from_Z(i).number] = str(peri.Element.from_Z(i))
-    return elementdict
 
 #create first basis set. (reference)
+class dft_system:
+    def __init__(self, basis, atomstruc):
+        """
+        class to define the systems to optimize.
+        :param element: array, str or number of the element in the periodic table
+        :param basis: name of the basis to optimize if you want to use multiple basis do something like
+                      basis = ["basis_1", "basis_2",...,"basis_N"] the array has to be the same length as atomstruc
+        :param atomstruc: structure of the system input like
+                            array([[element, [position]],
+                                  [element , [position]],
+                                  ...])
+                            therefore position has to be the length 3 with float number for each axis position in
+                            cartesian space. For example pos = [1.0, 1.0, 1.0]
+        """
+        self.basis = basis
+        self. atomstuc = atomstruc
+        self.element_dict = self.generateElementdict()
+        self.elements = self.get_element_arr()
+
+    ################################
+    #dqc stuff:
+    ################################
+
+    def dqc(self):
+        if type(self.basis) is str:
+            basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis}") for i in range(len(self.elements))]
+        else:
+            basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis[i]}") for i in range(len(self.elements))]
+        bpacker = xt.Packer(basis)
+        bparams = bpacker.get_param_tensor()
+        return {"bpacker" :bpacker,
+                "bparams": bparams}
+
+    ################################
+    #scf staff:
+    ################################
+
+    def _create_scf_Mol(self):
+        mol = gto.Mole()
+        mol.atom = self.atom
+        mol.spin = 0
+        mol.unit = 'Bohr'  # in Angstrom
+        mol.verbose = 6
+        mol.output = 'scf.out'
+        mol.symmetry = False
+        mol.basis = self.basis
+        return mol.build()
+
+    def _coeff_mat_scf(self):
+        """
+        just creates the coefficiency matrix for different input basis
+        """
+
+        mf = scf.RHF(self.mol)
+        mf.kernel()
+        return torch.tensor(mf.mo_coeff[:, mf.mo_occ > 0.])
+
+    def _get_occ(self):
+        mf = scf.RHF(self.mol)
+        mf.kernel()
+        return torch.tensor(mf.get_occ())
+
+    ################################
+    #extra staff to configure class:
+    ################################
+
+    def get_element_arr(self):
+        elements_arr  = [self.atomstuc[i][0] for i in range(len(atomstruc))]
+        for i in range(len(elements_arr)):
+            if type(elements_arr[i]) is str:
+                elements_arr[i] = self.element_dict[elements_arr[i]]
+        return elements_arr
+
+    def generateElementdict(self):
+        elementdict = {}
+        for i in range(1, 100):  # 100 Elements in Dict
+            elementdict[peri.Element.from_Z(i).number] = str(peri.Element.from_Z(i))
+            elementdict[ str(peri.Element.from_Z(i))] = peri.Element.from_Z(i).number
+        return elementdict
+
+
+
+
+atomstruc = [['H', [1.0, 0.0, 0.0]],
+            ['H', [-1.0, 0.0, 0.0]]]
+basis = "3-21G"
+system = dft_system(basis, atomstruc)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 basis = [dqc.loadbasis("1:3-21G"), dqc.loadbasis("1:3-21G")]
 bpacker = xt.Packer(basis)
 bparams = bpacker.get_param_tensor()
 
-atomstruc = "H 1 0 0; H -1 0 0"
+atomstruc = [['H', [1.0, 0.0, 0.0]],
+            ['H', [-1.0, 0.0, 0.0]]]
 
 # atomzs, atompos = parse_moldesc(atomstruc)
 # atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
@@ -125,7 +223,6 @@ def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
 def _crossoverlap(atomstruc, basis):
     #calculate cross overlap matrix
     atomzs, atompos = parse_moldesc(atomstruc)
-
     # atomzs : Atomic number (torch.tensor); len: number of Atoms
     # atompos : atom positions tensor of shape (3x len: number of Atoms )
     # now double both atom informations to use is for the second basis set
@@ -219,7 +316,7 @@ def _maximise_overlap(coeff, colap, num_gauss):
 ########################################################################################################################
 sys_scf = system_scf(basis_scf,atom_scf)
 occ = system_scf(basis_scf,atom_scf)._coeff_mat_scf()
-
+print(occ)
 def fcn(bparams, bpacker):
     """
     Function to optimize
