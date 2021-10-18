@@ -63,6 +63,8 @@ class dft_system:
                                 .replace(" , " , ";")
                                 .replace(",","")
                                 .replace("  ", " "))
+    def get_atomstruc_dqc(self):
+        return self.atomstuc_dqc
     def dqc(self, ref = False):
         if type(self.basis) is str:
             basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis}") for i in range(len(self.elements))]
@@ -136,7 +138,11 @@ class dft_system:
         """
         to_opt = self.dqc()
         ref = ref_system.dqc(ref= True)
-        return {**to_opt, **ref, "atomstuc_dqc":self.atomstuc_dqc}
+
+        return {**to_opt,
+                **ref,
+                "atomstuc_dqc" : self.atomstuc_dqc,
+                "coeffM" : self._coeff_mat_scf()}
 
 
 
@@ -146,10 +152,6 @@ basis = "3-21G"
 system = dft_system(basis, atomstruc)
 print(type(system))
 system_dqc = system.dqc()
-
-
-
-occ = system._coeff_mat_scf()
 
 ########################################################################################################################
 # create the second basis set to optimize
@@ -261,7 +263,7 @@ def _maximise_overlap(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : to
 
 def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
         , bparams_ref: torch.Tensor, bpacker_ref: xitorch._core.packer.Packer
-        , atomstruc_dqc: str):
+        , atomstruc_dqc: str, coeffM : torch.Tensor):
 
     """
     Function to optimize
@@ -282,7 +284,7 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
     #calculate cross overlap matrix
     colap = _crossoverlap(atomstruc, basis_cross)
-    coeff = occ
+    coeff = coeffM
 
     # maximize overlap
 
