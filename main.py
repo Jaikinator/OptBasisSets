@@ -29,7 +29,7 @@ cuda_device_checker()
 
 #create first basis set. (reference)
 class dft_system:
-    def __init__(self, basis, atomstruc):
+    def __init__(self, basis :str, atomstruc : list, scf = True):
         """
         class to define the systems to optimize.
         :param element: array, str or number of the element in the periodic table
@@ -47,8 +47,8 @@ class dft_system:
         self.atomstuc_dqc = self._arr_int_conv()
         self.element_dict = self._generateElementdict()
         self.elements = self._get_element_arr()
-
-        self.mol = self._create_scf_Mol()
+        if scf == True:
+            self.mol = self._create_scf_Mol()
     ################################
     #dqc stuff:
     ################################
@@ -124,6 +124,13 @@ class dft_system:
             elementdict[ str(peri.Element.from_Z(i))] = peri.Element.from_Z(i).number
         return elementdict
 
+    def fcn_dict(self,ref_system):
+        """
+        def dictionary to input in fcn
+        :param ref_system: class obj for the reference basis
+        :return:
+        """
+        pass
 
 
 
@@ -131,7 +138,9 @@ atomstruc = [['Li', [1.0, 0.0, 0.0]],
             ['Li', [-1.0, 0.0, 0.0]]]
 basis = "3-21G"
 system = dft_system(basis, atomstruc)
+print(type(system))
 system_dqc = system.dqc()
+
 
 
 occ = system._coeff_mat_scf()
@@ -244,20 +253,26 @@ def _maximise_overlap(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : to
 #test
 ########################################################################################################################
 
-def fcn(bparams, bpacker, bpacker_ref):
+def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
+        , bparams_ref: torch.Tensor, bpacker_ref: xitorch._core.packer.Packer
+        , atomstruc_dqc: str):
+
     """
     Function to optimize
-    :param bparams: torch.tensor with coeff of basis set
-    :param bpacker: xitorch._core.packer.Packer
+    :param bparams: torch.tensor with coeff of basis set for the basis that has to been optimized
+    :param bpacker: xitorch._core.packer.Packer object to create the CGTOBasis out of the bparams
+    :param bparams_ref: torch.tensor like bparams but now for the refenrenence basis on which to optimize.
+    :param bpacker_ref: xitorch._core.packer.Packer like Packer but now for the refenrenence basis on which to optimize.
+    :param atomstruc_dqc: string of atom structure
     :return:
     """
 
     basis = bpacker.construct_from_tensor(bparams) #create a CGTOBasis Object (set informations about gradient, normalization etc)
-    rest_basis = bpacker_rest.construct_from_tensor(bparams_rest)
-    num_gauss= _num_gauss(basis, rest_basis)
-    basis_cross = basis + rest_basis
+    ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
+    num_gauss= _num_gauss(basis, ref_basis)
+    basis_cross = basis + ref_basis
 
-    atomstruc = "Li 1 0 0; Li -1 0 0"
+    atomstruc = atomstruc_dqc
 
     #calculate cross overlap matrix
     colap = _crossoverlap(atomstruc, basis_cross)
@@ -282,8 +297,8 @@ if __name__ == "__main__":
     #     grady, = torch.autograd.grad(z, (y1,), retain_graph=True,
     #                                  create_graph=torch.is_grad_enabled())
 
-    min_bparams = xitorch.optimize.minimize(fcn, system_dqc["bparams"], (system_dqc["bpacker"]),
-                                            method = "Adam",step = 2e-3, maxiter = 50, verbose = True)
+    # min_bparams = xitorch.optimize.minimize(fcn, system_dqc["bparams"], (system_dqc["bpacker"],),
+    #                                         method = "Adam",step = 2e-3, maxiter = 50, verbose = True)
 
 
 
