@@ -210,7 +210,7 @@ def _num_gauss(basis : list, restbasis : list):
     for b in restbasis:
         for el in b:
             n_restbasis += 2 * el.angmom + 1
-    print([n_basis, n_restbasis])
+
     return [n_basis, n_restbasis]
 
 def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
@@ -306,7 +306,8 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
     num_gauss = _num_gauss(basis, ref_basis)
     basis_cross = basis + ref_basis
-
+    print(basis[0])
+    print(bparams)
     atomstruc = atomstruc_dqc
 
     # calculate cross overlap matrix
@@ -317,7 +318,7 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
     projection = _maximise_overlap(coeff,colap,num_gauss)
     projection = projection * system._get_occ()[system._get_occ() > 0]
-    print(colap)
+
     return -torch.trace(projection)/torch.sum(system._get_occ())
 
 if __name__ == "__main__":
