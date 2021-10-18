@@ -1,7 +1,5 @@
 from pyscf import gto, scf
-from xitorch._core.pure_function import get_pure_function, make_sibling
 import dqc
-import numpy as np
 import torch
 import xitorch as xt
 import xitorch.optimize
@@ -9,7 +7,6 @@ from dqc.utils.datastruct import AtomCGTOBasis
 import dqc.hamilton.intor as intor
 from dqc.api.parser import parse_moldesc
 
-import pymatgen as mg
 import pymatgen.core.periodic_table as peri
 
 ####################################
@@ -46,15 +43,26 @@ class dft_system:
                             cartesian space. For example pos = [1.0, 1.0, 1.0]
         """
         self.basis = basis
-        self. atomstuc = atomstruc
-        self.element_dict = self.generateElementdict()
-        self.elements = self.get_element_arr()
+        self.atomstuc = atomstruc
+        self.atomstuc_dqc = self._arr_int_conv()
+        self.element_dict = self._generateElementdict()
+        self.elements = self._get_element_arr()
 
         self.mol = self._create_scf_Mol()
     ################################
     #dqc stuff:
     ################################
-
+    def _arr_int_conv(self):
+        """
+        converts the atomsruc array to an str for dqc
+        :return: str
+        """
+        return (str(self.atomstuc).replace("["," ")
+                                .replace("]"," ")
+                                .replace("'","")
+                                .replace(" , " , ";")
+                                .replace(",","")
+                                .replace("  ", " "))
     def dqc(self):
         if type(self.basis) is str:
             basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis}") for i in range(len(self.elements))]
@@ -102,14 +110,14 @@ class dft_system:
     #extra staff to configure class:
     ################################
 
-    def get_element_arr(self):
+    def _get_element_arr(self):
         elements_arr  = [self.atomstuc[i][0] for i in range(len(atomstruc))]
         for i in range(len(elements_arr)):
             if type(elements_arr[i]) is str:
                 elements_arr[i] = self.element_dict[elements_arr[i]]
         return elements_arr
 
-    def generateElementdict(self):
+    def _generateElementdict(self):
         elementdict = {}
         for i in range(1, 100):  # 100 Elements in Dict
             elementdict[peri.Element.from_Z(i).number] = str(peri.Element.from_Z(i))
@@ -119,18 +127,19 @@ class dft_system:
 
 
 
-atomstruc = [['H', [1.0, 0.0, 0.0]],
-            ['H', [-1.0, 0.0, 0.0]]]
+atomstruc = [['Li', [1.0, 0.0, 0.0]],
+            ['Li', [-1.0, 0.0, 0.0]]]
 basis = "3-21G"
 system = dft_system(basis, atomstruc)
 system_dqc = system.dqc()
+
 
 occ = system._coeff_mat_scf()
 
 ########################################################################################################################
 # create the second basis set to optimize
 
-rest_basis = [dqc.loadbasis("1:3-21G", requires_grad=False),dqc.loadbasis("1:3-21G", requires_grad=False)] #cc-pvdz
+rest_basis = [dqc.loadbasis("3:3-21G", requires_grad=False),dqc.loadbasis("3:3-21G", requires_grad=False)] #cc-pvdz
 #rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False)]
 bpacker_rest = xt.Packer(rest_basis)
 bparams_rest = bpacker_rest.get_param_tensor()
@@ -193,8 +202,9 @@ def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
         raise UnicodeError("no direction specified")
 
 
-def _crossoverlap(atomstruc, basis):
+def _crossoverlap(atomstruc : str, basis : list):
     #calculate cross overlap matrix
+
     atomzs, atompos = parse_moldesc(atomstruc)
     # atomzs : Atomic number (torch.tensor); len: number of Atoms
     # atompos : atom positions tensor of shape (3x len: number of Atoms )
@@ -212,7 +222,7 @@ def _crossoverlap(atomstruc, basis):
 
 
 
-def _maximise_overlap(coeff, colap, num_gauss):
+def _maximise_overlap(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Tensor):
     """
     Calculate the Projection from the old to the new Basis:
          P = C^T S_12 S⁻¹_22 S_21 C
@@ -221,7 +231,6 @@ def _maximise_overlap(coeff, colap, num_gauss):
     :param num_gauss: array with length of the basis sets
     :return: Projection Matrix
     """
-
     S_12 = _cross_selcet(colap, num_gauss, "S_12")
     S_21 = _cross_selcet(colap, num_gauss, "S_21")
     S_22 = _cross_selcet(colap, num_gauss, "S_22")
@@ -247,7 +256,8 @@ def fcn(bparams, bpacker):
     rest_basis = bpacker_rest.construct_from_tensor(bparams_rest)
     num_gauss= _num_gauss(basis, rest_basis)
     basis_cross = basis + rest_basis
-    atomstruc = "H 1 0 0; H -1 0 0"
+
+    atomstruc = "Li 1 0 0; Li -1 0 0"
 
     #calculate cross overlap matrix
     colap = _crossoverlap(atomstruc, basis_cross)
@@ -272,8 +282,8 @@ if __name__ == "__main__":
     #     grady, = torch.autograd.grad(z, (y1,), retain_graph=True,
     #                                  create_graph=torch.is_grad_enabled())
 
-    min_bparams = xitorch.optimize.minimize(fcn, system_dqc["bparams"], (system_dqc["bpacker"],),
-                                            method = "Adam",step = 2e-3, maxiter = 100, verbose = True)
+    min_bparams = xitorch.optimize.minimize(fcn, system_dqc["bparams"], (system_dqc["bpacker"]),
+                                            method = "Adam",step = 2e-3, maxiter = 50, verbose = True)
 
 
 
