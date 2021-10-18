@@ -126,7 +126,19 @@ class dft_system:
         mol.symmetry = False
         mol.basis = self.basis
 
-        print("basis scf", gto.basis.load(self.basis, 'Li'))
+        # print("basis scf", gto.basis.load(self.basis, 'Li'))
+
+        # print("basis scf manual", gto.basis.parse("""
+        # Li    S
+        #     0.3683820000E+02       0.6966866381E-01
+        #     0.5481720000E+01       0.3813463493E+00
+        #     0.1113270000E+01       0.6817026244E+00
+        # Li    SP
+        #     0.5402050000E+00      -0.2631264058E+00       0.1615459708E+00
+        #     0.1022550000E+00       0.1143387418E+01       0.9156628347E+00
+        # Li    SP
+        #     0.2856450000E-01       0.1000000000E+01       0.1000000000E+01
+        # """))
         return mol.build()
 
     def _coeff_mat_scf(self):
@@ -278,6 +290,7 @@ def _maximise_overlap(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : to
     S_12 = _cross_selcet(colap, num_gauss, "S_12")
     S_21 = _cross_selcet(colap, num_gauss, "S_21")
     S_22 = _cross_selcet(colap, num_gauss, "S_22")
+
     s21_c = torch.matmul(S_12, coeff)
     s22_s21c = torch.matmul(torch.inverse(S_22), s21_c)
     s12_s22s21c = torch.matmul(S_21, s22_s21c)
@@ -306,8 +319,7 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
     num_gauss = _num_gauss(basis, ref_basis)
     basis_cross = basis + ref_basis
-    print(basis[0])
-    print(bparams)
+
     atomstruc = atomstruc_dqc
 
     # calculate cross overlap matrix
