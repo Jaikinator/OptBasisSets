@@ -305,6 +305,7 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     return -torch.trace(projection)/torch.sum(system._get_occ())
 
 if __name__ == "__main__":
+
     ####################################################################################################################
     # configure atomic system:
     ####################################################################################################################
