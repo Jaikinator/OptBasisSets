@@ -63,15 +63,19 @@ class dft_system:
                                 .replace(" , " , ";")
                                 .replace(",","")
                                 .replace("  ", " "))
-    def dqc(self):
+    def dqc(self, ref = False):
         if type(self.basis) is str:
             basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis}") for i in range(len(self.elements))]
         else:
             basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis[i]}") for i in range(len(self.elements))]
         bpacker = xt.Packer(basis)
         bparams = bpacker.get_param_tensor()
-        return {"bpacker" :bpacker,
-                "bparams": bparams}
+        if ref == True:
+            return {"bparams_ref": bpacker,
+                    "bpacker_ref": bparams}
+        else:
+            return {"bpacker" :bpacker,
+                    "bparams": bparams}
 
     ################################
     #scf staff:
@@ -130,7 +134,9 @@ class dft_system:
         :param ref_system: class obj for the reference basis
         :return:
         """
-        pass
+        to_opt = self.dqc()
+        ref = ref_system.dqc(ref= True)
+        return {**to_opt, **ref, "atomstuc_dqc":self.atomstuc_dqc}
 
 
 
