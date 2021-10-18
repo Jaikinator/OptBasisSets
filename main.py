@@ -112,6 +112,11 @@ class dft_system:
         be aware here just basis as a string works
         :return: mol object
         """
+
+        """
+        basis path from 
+        ~/anaconda3/envs/OptimizeBasisFunc/lib/python3.8/site-packages/pyscf/gto/basis
+        """
         mol = gto.Mole()
         mol.atom = self.atomstuc
         mol.spin = 0
@@ -121,7 +126,7 @@ class dft_system:
         mol.symmetry = False
         mol.basis = self.basis
 
-        print("basis scf", gto.basis.load(self.basis, 'H'))
+        print("basis scf", gto.basis.load(self.basis, 'Li'))
         return mol.build()
 
     def _coeff_mat_scf(self):
@@ -335,7 +340,7 @@ if __name__ == "__main__":
     # configure reference basis:
     ####################################################################################################################
     basis_ref = "3-21G"
-    system_ref = dft_system(basis_ref, atomstruc)
+    system_ref = dft_system(basis_ref, atomstruc, scf = False)
 
     ####################################################################################################################
     # create input dictionary for fcn()
