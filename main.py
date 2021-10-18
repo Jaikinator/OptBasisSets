@@ -9,9 +9,10 @@ from dqc.api.parser import parse_moldesc
 
 import pymatgen.core.periodic_table as peri
 
-####################################
-#check if GPU is used:
+########################################################################################################################
+# check if GPU is used:
 # setting device on GPU if available, else CPU
+########################################################################################################################
 def cuda_device_checker(memory  = False):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if memory is False:
@@ -23,11 +24,11 @@ def cuda_device_checker(memory  = False):
             print('Cached:   ', round(torch.cuda.memory_reserved(0) / 1024 ** 3, 1), 'GB')
 
 cuda_device_checker()
+
 ########################################################################################################################
-### create a dictionary for the elements and their numbers in the periodic table.
+# first create class to configure system
 ########################################################################################################################
 
-#create first basis set. (reference)
 class dft_system:
     def __init__(self, basis :str, atomstruc : list, scf = True):
         """
@@ -63,21 +64,35 @@ class dft_system:
                                 .replace(" , " , ";")
                                 .replace(",","")
                                 .replace("  ", " "))
+
     def get_atomstruc_dqc(self):
         return self.atomstuc_dqc
+
     def dqc(self, ref = False):
-        if type(self.basis) is str:
-            basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis}") for i in range(len(self.elements))]
-        else:
-            basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis[i]}") for i in range(len(self.elements))]
-        bpacker = xt.Packer(basis)
-        bparams = bpacker.get_param_tensor()
         if ref == True:
-            return {"bparams_ref": bpacker,
-                    "bpacker_ref": bparams}
+            if type(self.basis) is str:
+                basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis}") for i in range(len(self.elements))]
+            else:
+                basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis[i]}") for i in range(len(self.elements))]
+
+            bpacker = xt.Packer(basis)
+            bparams = bpacker.get_param_tensor()
+            return {"bparams_ref": bparams,
+                    "bpacker_ref": bpacker}
+
         else:
-            return {"bpacker" :bpacker,
-                    "bparams": bparams}
+            if type(self.basis) is str:
+                basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis}", requires_grad=False)
+                         for i in range(len(self.elements))]
+            else:
+                basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis[i]}", requires_grad=False)
+                         for i in range(len(self.elements))]
+
+            bpacker = xt.Packer(basis)
+            bparams = bpacker.get_param_tensor()
+
+            return {"bparams": bparams,
+                    "bpacker": bpacker}
 
     ################################
     #scf staff:
@@ -108,6 +123,9 @@ class dft_system:
         return torch.tensor(mf.mo_coeff[:, mf.mo_occ > 0.])
 
     def _get_occ(self):
+        """
+        get density matrix
+        """
         mf = scf.RHF(self.mol)
         mf.kernel()
         return torch.tensor(mf.get_occ())
@@ -117,6 +135,9 @@ class dft_system:
     ################################
 
     def _get_element_arr(self):
+        """
+        create array with all elements in the system
+        """
         elements_arr  = [self.atomstuc[i][0] for i in range(len(atomstruc))]
         for i in range(len(elements_arr)):
             if type(elements_arr[i]) is str:
@@ -124,6 +145,9 @@ class dft_system:
         return elements_arr
 
     def _generateElementdict(self):
+        """
+        create a dictionary for the elements and their numbers in the periodic table.
+        """
         elementdict = {}
         for i in range(1, 100):  # 100 Elements in Dict
             elementdict[peri.Element.from_Z(i).number] = str(peri.Element.from_Z(i))
@@ -141,27 +165,14 @@ class dft_system:
 
         return {**to_opt,
                 **ref,
-                "atomstuc_dqc" : self.atomstuc_dqc,
+                "atomstruc_dqc" : self.atomstuc_dqc,
                 "coeffM" : self._coeff_mat_scf()}
 
 
-
-atomstruc = [['Li', [1.0, 0.0, 0.0]],
-            ['Li', [-1.0, 0.0, 0.0]]]
-basis = "3-21G"
-system = dft_system(basis, atomstruc)
-print(type(system))
-system_dqc = system.dqc()
-
 ########################################################################################################################
-# create the second basis set to optimize
-
-rest_basis = [dqc.loadbasis("3:3-21G", requires_grad=False),dqc.loadbasis("3:3-21G", requires_grad=False)] #cc-pvdz
-#rest_basis = [dqc.loadbasis("1:cc-pvdz", requires_grad=False)]
-bpacker_rest = xt.Packer(rest_basis)
-bparams_rest = bpacker_rest.get_param_tensor()
-
+# now do the actual calculations
 ########################################################################################################################
+
 def _num_gauss(basis : list, restbasis : list):
     """
     calc the number of primitive gaussians in a basis set so that the elements of an overlap matrix can be defined.
@@ -258,7 +269,7 @@ def _maximise_overlap(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : to
     return P
 
 ########################################################################################################################
-#test
+# test function
 ########################################################################################################################
 
 def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
@@ -282,7 +293,7 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
     atomstruc = atomstruc_dqc
 
-    #calculate cross overlap matrix
+    # calculate cross overlap matrix
     colap = _crossoverlap(atomstruc, basis_cross)
     coeff = coeffM
 
@@ -294,8 +305,38 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     return -torch.trace(projection)/torch.sum(system._get_occ())
 
 if __name__ == "__main__":
+    ####################################################################################################################
+    # configure atomic system:
+    ####################################################################################################################
+    atomstruc = [['Li', [1.0, 0.0, 0.0]],
+                 ['Li', [-1.0, 0.0, 0.0]]]
+    ####################################################################################################################
+    # configure basis to optimize:
+    ####################################################################################################################
 
-    print(fcn(**system_dqc))
+    basis = "3-21G"
+    system = dft_system(basis, atomstruc)
+
+    ####################################################################################################################
+    # configure reference basis:
+    ####################################################################################################################
+    basis_ref = "3-21G"
+    system_ref = dft_system(basis_ref, atomstruc)
+
+    ####################################################################################################################
+    # create input dictionary for fcn()
+    func_dict = system.fcn_dict(system_ref)
+
+    print(fcn(**func_dict))
+
+    min_bparams = xitorch.optimize.minimize(fcn, func_dict["bparams"], (func_dict["bpacker"],
+                                                                        func_dict["bparams_ref"],
+                                                                        func_dict["bpacker_ref"],
+                                                                        func_dict["atomstruc_dqc"],
+                                                                        func_dict["coeffM"] ,),
+                                            method = "Adam",step = 2e-3, maxiter = 50, verbose = True)
+
+
 
     # def _min_fwd_fcn(y, *params):
     #     pfunc = get_pure_function(fcn)
@@ -304,10 +345,5 @@ if __name__ == "__main__":
     #         z = pfunc(y1, *params)
     #     grady, = torch.autograd.grad(z, (y1,), retain_graph=True,
     #                                  create_graph=torch.is_grad_enabled())
-
-    # min_bparams = xitorch.optimize.minimize(fcn, system_dqc["bparams"], (system_dqc["bpacker"],),
-    #                                         method = "Adam",step = 2e-3, maxiter = 50, verbose = True)
-
-
 
 
