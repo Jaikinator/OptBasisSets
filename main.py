@@ -71,6 +71,13 @@ class dft_system:
         return self.atomstuc_dqc
 
     def dqc(self, ref = False):
+        """
+        create bparams anbd bpacker object to configure basis set used for calculations
+        :param ref: if ref is True its sets up the Params for fcn for the reference basis
+        :return: dict
+        """
+        # data of basis sets ist stored:
+        # /home/user/anaconda3/envs/env/lib/python3.8/site-packages/dqc/api
         if ref == True:
             if type(self.basis) is str:
                 basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis}") for i in range(len(self.elements))]
@@ -113,6 +120,8 @@ class dft_system:
         mol.output = 'scf.out'
         mol.symmetry = False
         mol.basis = self.basis
+
+        print("basis scf", gto.basis.load(self.basis, 'H'))
         return mol.build()
 
     def _coeff_mat_scf(self):
@@ -196,7 +205,7 @@ def _num_gauss(basis : list, restbasis : list):
     for b in restbasis:
         for el in b:
             n_restbasis += 2 * el.angmom + 1
-
+    print([n_basis, n_restbasis])
     return [n_basis, n_restbasis]
 
 def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
@@ -290,7 +299,7 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
     basis = bpacker.construct_from_tensor(bparams) #create a CGTOBasis Object (set informations about gradient, normalization etc)
     ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
-    num_gauss= _num_gauss(basis, ref_basis)
+    num_gauss = _num_gauss(basis, ref_basis)
     basis_cross = basis + ref_basis
 
     atomstruc = atomstruc_dqc
@@ -303,7 +312,7 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
     projection = _maximise_overlap(coeff,colap,num_gauss)
     projection = projection * system._get_occ()[system._get_occ() > 0]
-
+    print(colap)
     return -torch.trace(projection)/torch.sum(system._get_occ())
 
 if __name__ == "__main__":
@@ -334,12 +343,12 @@ if __name__ == "__main__":
 
     print(fcn(**func_dict))
 
-    min_bparams = xitorch.optimize.minimize(fcn, func_dict["bparams"], (func_dict["bpacker"],
-                                                                        func_dict["bparams_ref"],
-                                                                        func_dict["bpacker_ref"],
-                                                                        func_dict["atomstruc_dqc"],
-                                                                        func_dict["coeffM"] ,),
-                                            method = "Adam",step = 2e-3, maxiter = 50, verbose = True)
+    # min_bparams = xitorch.optimize.minimize(fcn, func_dict["bparams"], (func_dict["bpacker"],
+    #                                                                     func_dict["bparams_ref"],
+    #                                                                     func_dict["bpacker_ref"],
+    #                                                                     func_dict["atomstruc_dqc"],
+    #                                                                     func_dict["coeffM"] ,),
+    #                                         method = "Adam",step = 2e-3, maxiter = 50, verbose = True)
 
     # def _min_fwd_fcn(y, *params):
     #     pfunc = get_pure_function(fcn)
