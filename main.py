@@ -50,9 +50,11 @@ class dft_system:
         self.elements = self._get_element_arr()
         if scf == True:
             self.mol = self._create_scf_Mol()
+
     ################################
     #dqc stuff:
     ################################
+
     def _arr_int_conv(self):
         """
         converts the atomsruc array to an str for dqc
