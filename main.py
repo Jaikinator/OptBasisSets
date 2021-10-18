@@ -244,7 +244,7 @@ def _maximise_overlap(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : to
 #test
 ########################################################################################################################
 
-def fcn(bparams, bpacker):
+def fcn(bparams, bpacker, bpacker_ref):
     """
     Function to optimize
     :param bparams: torch.tensor with coeff of basis set
