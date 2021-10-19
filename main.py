@@ -98,21 +98,23 @@ class dft_system:
 
     def _basis_reconf_dqc(self,**kwargs):
         basis = self._loadbasis_dqc(**kwargs)
-        print(f"\n\n{basis[0]}")
         out_arr = []
+
         for i in range(len(basis)):
             inner = []
+            counter  = 0
             for j in range(len(basis[i])):
                 if basis[i][j].angmom == 0:
                     inner.append(basis[i][j])
             out_arr.append(inner)
+
         for i in range(len(basis)):
             inner = []
             for j in range(len(basis[i])):
                 if basis[i][j].angmom == 1:
                     inner.append(basis[i][j])
-            out_arr[i].append(inner)
-        print(out_arr[0],"\n\n")
+            for h in range(len(inner)):
+                out_arr[i].append(inner[h])
         return basis
 
     def _get_ovlp_dqc(self):
@@ -142,7 +144,7 @@ class dft_system:
         """
         mol = gto.Mole()
         mol.atom = self.atomstuc
-        mol.spin = 1
+        mol.spin = 0
         mol.unit = 'Bohr'  # in Angstrom
         mol.verbose = 6
         mol.output = 'scf.out'
@@ -180,6 +182,7 @@ class dft_system:
         mf = scf.RHF(self.mol)
         mf.kernel()
         return torch.tensor(mf.get_occ())
+
     def _get_ovlp_sfc(self):
         """
         create the overlap matrix of the pyscf system
@@ -392,8 +395,8 @@ if __name__ == "__main__":
     # configure atomic system:
     ####################################################################################################################
 
-    atomstruc = [['Li', [1.0, 0.0, 0.0]]]
-                 #['H', [-1.0, 0.0, 0.0]]]
+    atomstruc = [['H', [1.0, 0.0, 0.0]],
+                 ['H', [-1.0, 0.0, 0.0]]]
 
     ####################################################################################################################
     # configure basis to optimize:
