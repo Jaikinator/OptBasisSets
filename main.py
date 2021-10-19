@@ -38,7 +38,7 @@ torch.set_printoptions(linewidth = 200)
 ########################################################################################################################
 
 class dft_system:
-    def __init__(self, basis :str, atomstruc : list, scf = True):
+    def __init__(self, basis :str, atomstruc : list, scf = True, requires_grad = False ):
         """
         class to define the systems to optimize.
         :param element: array, str or number of the element in the periodic table
@@ -51,12 +51,19 @@ class dft_system:
                             therefore position has to be the length 3 with float number for each axis position in
                             cartesian space. For example pos = [1.0, 1.0, 1.0]
         :param scf: if True you get the system as dqc as well as scf system.
+        :param requires_grad: support gradient of torch.Tensor
         """
         self.basis = basis
         self.atomstuc = atomstruc
         self.atomstuc_dqc = self._arr_int_conv()
         self.element_dict = self._generateElementdict()
         self.elements = self._get_element_arr()
+
+        if requires_grad == False :
+            self.lbasis = self._loadbasis_dqc(requires_grad=False)  # loaded dqc basis
+        else:
+            self.lbasis = self._loadbasis_dqc()
+
         if scf == True:
             self.mol = self._create_scf_Mol()
 
@@ -79,6 +86,9 @@ class dft_system:
     def get_atomstruc_dqc(self):
         return self.atomstuc_dqc
 
+    def get_basis(self):
+        return self.lbasis
+
     def _loadbasis_dqc(self,**kwargs):
         """
         load basis from basissetexchange for the dqc module:
@@ -96,8 +106,9 @@ class dft_system:
             basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis[i]}", **kwargs) for i in range(len(self.elements))]
         return basis
 
-    def _basis_reconf_dqc(self,**kwargs):
-        basis = self._loadbasis_dqc(**kwargs)
+    def _rearrange_basis_dqc(self):
+
+        basis = self.lbasis
         out_arr = []
 
         for i in range(len(basis)):
@@ -115,11 +126,11 @@ class dft_system:
                     inner.append(basis[i][j])
             for h in range(len(inner)):
                 out_arr[i].append(inner[h])
-        return basis
+        return out_arr
 
-    def _get_ovlp_dqc(self):
-        basis = self._loadbasis_dqc()
-        print("ovlp calc")
+    def _get_ovlp_dqc(self, **kwargs):
+        basis = self.lbasis
+
         atomzs, atompos = parse_moldesc(system.get_atomstruc_dqc())
         atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
         wrap = dqc.hamilton.intor.LibcintWrapper(
@@ -214,15 +225,20 @@ class dft_system:
             elementdict[ str(peri.Element.from_Z(i))] = peri.Element.from_Z(i).number
         return elementdict
 
-    def ovlp_dqc_scf_eq(self, all = False):
+    def ovlp_dqc_scf_eq(self, all = False, rearrange = False):
         """
         checks if the overlap matrix of dqc and scf are equal
         :param all: if True outputs the full array
         :return: array or bool
         """
+
         pyscf_o = self._get_ovlp_sfc()
 
+        if rearrange == True:
+            self.lbasis = self._rearrange_basis_dqc()
+
         dqc_o = self._get_ovlp_dqc()
+
         if all == True:
             return torch.isclose(dqc_o, pyscf_o)
         else:
@@ -238,11 +254,11 @@ class dft_system:
         :return:
         """
 
-        basis = self._loadbasis_dqc()
+        basis = self.lbasis
         bpacker = xt.Packer(basis)
         bparams = bpacker.get_param_tensor()
 
-        basis_ref = ref_system._loadbasis_dqc(requires_grad=False)
+        basis_ref = ref_system.lbasis
         bpacker_ref = xt.Packer(basis_ref)
         bparams_ref = bpacker_ref.get_param_tensor()
 
@@ -314,7 +330,6 @@ def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
     else:
         raise UnicodeError("no direction specified")
 
-
 def _crossoverlap(atomstruc : str, basis : list):
     #calculate cross overlap matrix
 
@@ -331,8 +346,6 @@ def _crossoverlap(atomstruc : str, basis : list):
     wrap = dqc.hamilton.intor.LibcintWrapper(
         atombases)  # creates an wrapper object to pass informations on lower functions
     return intor.overlap(wrap)
-
-
 
 def _maximise_overlap(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Tensor):
     """
@@ -395,8 +408,8 @@ if __name__ == "__main__":
     # configure atomic system:
     ####################################################################################################################
 
-    atomstruc = [['H', [1.0, 0.0, 0.0]],
-                 ['H', [-1.0, 0.0, 0.0]]]
+    atomstruc = [['Li', [1.0, 0.0, 0.0]],
+                 ['Li', [-1.0, 0.0, 0.0]]]
 
     ####################################################################################################################
     # configure basis to optimize:
@@ -404,7 +417,7 @@ if __name__ == "__main__":
 
     basis = "3-21G"
     system = dft_system(basis, atomstruc)
-
+    system2 = dft_system(basis, atomstruc) #for test of ovlp
     ####################################################################################################################
     # configure reference basis:
     ####################################################################################################################
@@ -415,8 +428,9 @@ if __name__ == "__main__":
     # create input dictionary for fcn()
 
     #func_dict = system.fcn_dict(system_ref)
-    system._basis_reconf_dqc()
-    print(system.ovlp_dqc_scf_eq())
+
+    print(system.ovlp_dqc_scf_eq(all = True ,rearrange = True) == system2.ovlp_dqc_scf_eq(all = True ,rearrange = False))
+
 
 
     #print(fcn(**func_dict))
