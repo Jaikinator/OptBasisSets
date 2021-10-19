@@ -7,6 +7,8 @@ from dqc.utils.datastruct import AtomCGTOBasis
 import dqc.hamilton.intor as intor
 from dqc.api.parser import parse_moldesc
 
+import numpy as np
+
 import pymatgen.core.periodic_table as peri
 
 ########################################################################################################################
@@ -26,6 +28,12 @@ def cuda_device_checker(memory  = False):
 cuda_device_checker()
 
 ########################################################################################################################
+# configure torch tensor
+########################################################################################################################
+
+torch.set_printoptions(linewidth = 200)
+
+########################################################################################################################
 # first create class to configure system
 ########################################################################################################################
 
@@ -42,6 +50,7 @@ class dft_system:
                                   ...])
                             therefore position has to be the length 3 with float number for each axis position in
                             cartesian space. For example pos = [1.0, 1.0, 1.0]
+        :param scf: if True you get the system as dqc as well as scf system.
         """
         self.basis = basis
         self.atomstuc = atomstruc
@@ -70,58 +79,58 @@ class dft_system:
     def get_atomstruc_dqc(self):
         return self.atomstuc_dqc
 
-    def dqc_basis(self,**kwargs):
+    def _loadbasis_dqc(self,**kwargs):
+        """
+        load basis from basissetexchange for the dqc module:
+        https://www.basissetexchange.org/
+
+        data of basis sets ist stored:
+        /home/user/anaconda3/envs/env/lib/python3.8/site-packages/dqc/api
+
+        :param kwargs: requires_grad=False if basis is reference basis
+        :return: array of basis
+        """
         if type(self.basis) is str:
             basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis}", **kwargs) for i in range(len(self.elements))]
         else:
             basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis[i]}", **kwargs) for i in range(len(self.elements))]
         return basis
 
-    def dqc(self, ref = False):
-        """
-        create bparams anbd bpacker object to configure basis set used for calculations
-        :param ref: if ref is True its sets up the Params for fcn for the reference basis
-        :return: dict
-        """
-        # data of basis sets ist stored:
-        # /home/user/anaconda3/envs/env/lib/python3.8/site-packages/dqc/api
-        if ref == True:
-            if type(self.basis) is str:
-                basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis}") for i in range(len(self.elements))]
-            else:
-                basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis[i]}") for i in range(len(self.elements))]
+    def _basis_reconf_dqc(self,**kwargs):
+        basis = self._loadbasis_dqc(**kwargs)
+        print(f"\n\n{basis[0]}")
+        out_arr = []
+        for i in range(len(basis)):
+            inner = []
+            for j in range(len(basis[i])):
+                if basis[i][j].angmom == 0:
+                    inner.append(basis[i][j])
+            out_arr.append(inner)
+        for i in range(len(basis)):
+            inner = []
+            for j in range(len(basis[i])):
+                if basis[i][j].angmom == 1:
+                    inner.append(basis[i][j])
+            out_arr[i].append(inner)
+        print(out_arr[0],"\n\n")
+        return basis
 
-            bpacker = xt.Packer(basis)
-            bparams = bpacker.get_param_tensor()
-            return {"bparams_ref": bparams,
-                    "bpacker_ref": bpacker}
-
-        else:
-            if type(self.basis) is str:
-                basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis}", requires_grad=False)
-                         for i in range(len(self.elements))]
-            else:
-                basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis[i]}", requires_grad=False)
-                         for i in range(len(self.elements))]
-
-            bpacker = xt.Packer(basis)
-            bparams = bpacker.get_param_tensor()
-
-            return {"bparams": bparams,
-                    "bpacker": bpacker}
-
-    def overlap_dqc(self):
-        basis = self.dqc_basis()
+    def _get_ovlp_dqc(self):
+        basis = self._loadbasis_dqc()
+        print("ovlp calc")
         atomzs, atompos = parse_moldesc(system.get_atomstruc_dqc())
+        atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
+        wrap = dqc.hamilton.intor.LibcintWrapper(
+            atombases)  # creates an wrapper object to pass informations on lower functions
 
-        # atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
+        return intor.overlap(wrap)
 
 
     ################################
     #scf staff:
     ################################
 
-    def _create_scf_Mol(self):
+    def _create_scf_Mol(self,spin =0):
         """
         be aware here just basis as a string works
         :return: mol object
@@ -133,17 +142,13 @@ class dft_system:
         """
         mol = gto.Mole()
         mol.atom = self.atomstuc
-        mol.spin = 0
+        mol.spin = 1
         mol.unit = 'Bohr'  # in Angstrom
         mol.verbose = 6
         mol.output = 'scf.out'
         mol.symmetry = False
         mol.basis  = self.basis
-
-
-        # print("basis scf", gto.basis.load(self.basis, 'Li'))
-
-        # print("basis scf manual", gto.basis.parse("""
+        # mol.basis = gto.basis.parse("""
         # Li    S
         #     0.3683820000E+02       0.6966866381E-01
         #     0.5481720000E+01       0.3813463493E+00
@@ -153,7 +158,10 @@ class dft_system:
         #     0.1022550000E+00       0.1143387418E+01       0.9156628347E+00
         # Li    SP
         #     0.2856450000E-01       0.1000000000E+01       0.1000000000E+01
-        # """))
+        # """)
+
+        print("basis scf", gto.basis.load(self.basis, 'Li'))
+
         return mol.build()
 
     def _coeff_mat_scf(self):
@@ -172,6 +180,12 @@ class dft_system:
         mf = scf.RHF(self.mol)
         mf.kernel()
         return torch.tensor(mf.get_occ())
+    def _get_ovlp_sfc(self):
+        """
+        create the overlap matrix of the pyscf system
+        :return: torch.Tensor (torch.float64)
+        """
+        return torch.Tensor(self.mol.get_ovlp()).type(torch.float64)
 
     ################################
     #extra staff to configure class:
@@ -197,17 +211,42 @@ class dft_system:
             elementdict[ str(peri.Element.from_Z(i))] = peri.Element.from_Z(i).number
         return elementdict
 
+    def ovlp_dqc_scf_eq(self, all = False):
+        """
+        checks if the overlap matrix of dqc and scf are equal
+        :param all: if True outputs the full array
+        :return: array or bool
+        """
+        pyscf_o = self._get_ovlp_sfc()
+
+        dqc_o = self._get_ovlp_dqc()
+        if all == True:
+            return torch.isclose(dqc_o, pyscf_o)
+        else:
+            return torch.all(torch.isclose(dqc_o, pyscf_o))
+
+    ################################
+    # relevant export dict:
+    ################################
     def fcn_dict(self,ref_system):
         """
         def dictionary to input in fcn
         :param ref_system: class obj for the reference basis
         :return:
         """
-        to_opt = self.dqc()
-        ref = ref_system.dqc(ref = True)
 
-        return {**to_opt,
-                **ref,
+        basis = self._loadbasis_dqc()
+        bpacker = xt.Packer(basis)
+        bparams = bpacker.get_param_tensor()
+
+        basis_ref = ref_system._loadbasis_dqc(requires_grad=False)
+        bpacker_ref = xt.Packer(basis_ref)
+        bparams_ref = bpacker_ref.get_param_tensor()
+
+        return {"bparams": bparams,
+                "bpacker": bpacker,
+                "bparams_ref": bparams_ref,
+                "bpacker_ref": bpacker_ref,
                 "atomstruc_dqc" : self.atomstuc_dqc,
                 "coeffM" : self._coeff_mat_scf()}
 
@@ -283,7 +322,6 @@ def _crossoverlap(atomstruc : str, basis : list):
 
     atomzs = torch.cat([atomzs, atomzs])
     atompos = torch.cat([atompos, atompos])
-    print(basis)
     atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
     # creats an list with AtomCGTOBasis object for each atom (including  all previous informations in one array element)
 
@@ -354,8 +392,8 @@ if __name__ == "__main__":
     # configure atomic system:
     ####################################################################################################################
 
-    atomstruc = [['Li', [1.0, 0.0, 0.0]],
-                 ['Li', [-1.0, 0.0, 0.0]]]
+    atomstruc = [['Li', [1.0, 0.0, 0.0]]]
+                 #['H', [-1.0, 0.0, 0.0]]]
 
     ####################################################################################################################
     # configure basis to optimize:
@@ -372,22 +410,15 @@ if __name__ == "__main__":
 
     ####################################################################################################################
     # create input dictionary for fcn()
-    func_dict = system.fcn_dict(system_ref)
 
-    pyscf_o = system._create_scf_Mol().get_ovlp()
+    #func_dict = system.fcn_dict(system_ref)
+    system._basis_reconf_dqc()
+    print(system.ovlp_dqc_scf_eq())
 
-    atomzs, atompos = parse_moldesc(system.get_atomstruc_dqc())
 
-   # atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
-  #  print(atombases)
-    # wrap = dqc.hamilton.intor.LibcintWrapper(
-    #     atombases)  # creates an wrapper object to pass informations on lower functions
-    #
-    # dqc_o = intor.overlap(wrap)
-    #
-    # print(dqc_o.shape, pyscf_o.shape)
+    #print(fcn(**func_dict))
 
-    print(fcn(**func_dict))
+
 #######################
 
     # min_bparams = xitorch.optimize.minimize(fcn, func_dict["bparams"], (func_dict["bpacker"],
