@@ -25,7 +25,7 @@ def cuda_device_checker(memory  = False):
             print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
             print('Cached:   ', round(torch.cuda.memory_reserved(0) / 1024 ** 3, 1), 'GB')
 
-cuda_device_checker()
+# cuda_device_checker()
 
 ########################################################################################################################
 # configure torch tensor
@@ -129,7 +129,11 @@ class dft_system:
         return out_arr
 
     def _get_ovlp_dqc(self, **kwargs):
-        basis = self.lbasis
+        if "rearrange" in kwargs:
+            if kwargs[ "rearrange"] == True:
+                basis = self._rearrange_basis_dqc()
+        else:
+            basis = self.lbasis
 
         atomzs, atompos = parse_moldesc(system.get_atomstruc_dqc())
         atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
@@ -161,6 +165,7 @@ class dft_system:
         mol.output = 'scf.out'
         mol.symmetry = False
         mol.basis  = self.basis
+
         # mol.basis = gto.basis.parse("""
         # Li    S
         #     0.3683820000E+02       0.6966866381E-01
@@ -225,7 +230,7 @@ class dft_system:
             elementdict[ str(peri.Element.from_Z(i))] = peri.Element.from_Z(i).number
         return elementdict
 
-    def ovlp_dqc_scf_eq(self, all = False, rearrange = False):
+    def ovlp_dqc_scf_eq(self, way : str):
         """
         checks if the overlap matrix of dqc and scf are equal
         :param all: if True outputs the full array
@@ -234,15 +239,77 @@ class dft_system:
 
         pyscf_o = self._get_ovlp_sfc()
 
-        if rearrange == True:
-            self.lbasis = self._rearrange_basis_dqc()
-
         dqc_o = self._get_ovlp_dqc()
 
-        if all == True:
+
+
+        if way == "bool_arr":
+            """
+            return complete array of bool entries
+            """
             return torch.isclose(dqc_o, pyscf_o)
-        else:
+        elif way == "bool":
+            """
+            just retruns a bool if both arrays equal
+            """
             return torch.all(torch.isclose(dqc_o, pyscf_o))
+        elif way == "dqc":
+            """
+            compares rearrange array with not rearrange array
+            """
+            dqc_o_re = self._get_ovlp_dqc(rearrange = True) # rearranged basis array
+            eq_arr = dqc_o == dqc_o_re
+
+            Findex = torch.where(eq_arr == False)
+
+            list_dqcore = dqc_o_re[Findex] #list of all elements of the rearranged Matrix where their are not equal
+            list_dqco = dqc_o[Findex]  #list of all elements of the not rearranged Matrix where their are not equal
+
+            counter_1 = 0 #couts elements of list_dqcore in list_dqco
+            counter_2 = 0  #couts elements of list_dqco in list_dqcore
+            for i in range(len(list_dqco)):
+                for j in range(len(list_dqcore)):
+                    if list_dqcore[j] == list_dqco[i]:
+                        counter_1 += 1
+                    if  list_dqco[j] == list_dqcore[i]:
+                        counter_2 += 1
+
+            if counter_1 == counter_2:
+                print("elements in the array are just on the wrong position")
+                return True
+            else:
+                print("overlap wrong calculated")
+                return False
+
+        elif way == "check_dqc_scf":
+            """
+            compares the overlap of pyscf and dqc and compares whether 
+            the same elements are present in both matrices.
+            """
+
+            eq_arr = dqc_o == pyscf_o
+
+            Findex = torch.where(eq_arr == False)
+
+            list_dqcore = pyscf_o[Findex]  # list of all elements of the rearranged Matrix where their are not equal
+            list_dqco = dqc_o[Findex]  # list of all elements of the not rearranged Matrix where their are not equal
+
+            counter_1 = 0  # couts elements of list_dqcore in list_dqco
+            counter_2 = 0  # couts elements of list_dqco in list_dqcore
+
+            for i in range(len(list_dqco)):
+                for j in range(len(list_dqcore)):
+                    if list_dqcore[j] == list_dqco[i]:
+                        counter_1 += 1
+                    if list_dqco[j] == list_dqcore[i]:
+                        counter_2 += 1
+
+            if counter_1 == counter_2:
+                print("elements in the array are just on the wrong position")
+                return True
+            else:
+                print("overlap wrong calculated")
+                return False
 
     ################################
     # relevant export dict:
@@ -417,7 +484,7 @@ if __name__ == "__main__":
 
     basis = "3-21G"
     system = dft_system(basis, atomstruc)
-    system2 = dft_system(basis, atomstruc) #for test of ovlp
+
     ####################################################################################################################
     # configure reference basis:
     ####################################################################################################################
@@ -429,7 +496,7 @@ if __name__ == "__main__":
 
     #func_dict = system.fcn_dict(system_ref)
 
-    print(system.ovlp_dqc_scf_eq(all = True ,rearrange = True) == system2.ovlp_dqc_scf_eq(all = True ,rearrange = False))
+    print(system.ovlp_dqc_scf_eq(way = "check_dqc_scf"))
 
 
 
