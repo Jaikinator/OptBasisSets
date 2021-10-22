@@ -110,10 +110,9 @@ class dft_system:
 
         basis = self.lbasis
         out_arr = []
-
+        #print(basis)
         for i in range(len(basis)):
             inner = []
-            counter  = 0
             for j in range(len(basis[i])):
                 if basis[i][j].angmom == 0:
                     inner.append(basis[i][j])
@@ -126,6 +125,7 @@ class dft_system:
                     inner.append(basis[i][j])
             for h in range(len(inner)):
                 out_arr[i].append(inner[h])
+        #print(out_arr)
         return out_arr
 
     def _get_ovlp_dqc(self, **kwargs):
@@ -178,7 +178,7 @@ class dft_system:
         #     0.2856450000E-01       0.1000000000E+01       0.1000000000E+01
         # """)
 
-        # print("basis scf", gto.basis.load(self.basis, 'Li'))
+        #print("basis scf", gto.basis.load(self.basis, 'Li'))
 
         return mol.build()
 
@@ -205,36 +205,6 @@ class dft_system:
         :return: torch.Tensor (torch.float64)
         """
         return torch.Tensor(self.mol.get_ovlp()).type(torch.float64)
-
-    def _reconf_scf_arr(self, desc : str):
-        """
-        reconfigure a matrix (like the overlap matrix, or dens mat) from scf to that one given by dqc
-        :param desc: describes the option whitch array you want to readjust you can select:
-                    "ovlp" : for the overlap matrix
-                    "dens" : for the density matrix
-                    "coeff" : for the coeff matrix
-        :return: reconfigured scf matrix
-        """
-        arr_dqc = self._get_ovlp_dqc()
-
-        def readjust(arr_scf, arr_dqc):
-            FIndex = torch.where(torch.isclose(arr_scf, arr_dqc) == False)
-            for i in range(len(FIndex[0])):
-                val_scf = arr_scf[FIndex[0][i], FIndex[1][i]]
-                if val_scf != 0:
-                    # val_dqc = arr_dqc[FIndex[0][i], FIndex[1][i]]
-                    # val_scf,arr_dqc[FIndex[0][1], FIndex[1][1]], torch.where(torch.isclose(arr_dqc,val_scf,atol=1e-03))
-                    index = torch.where(torch.isclose(arr_dqc,val_scf,atol=1e-03))
-                    print(index)
-                    print(arr_dqc[index])
-
-
-
-        if desc == "ovlp":
-            arr_scf = self._get_ovlp_sfc()
-            return readjust(arr_scf, arr_dqc)
-
-
 
 
     ################################
@@ -283,7 +253,11 @@ class dft_system:
             """
             just retruns a bool if both arrays equal
             """
-            return torch.all(torch.isclose(dqc_o, pyscf_o))
+            return torch.all(torch.isclose(dqc_o, pyscf_o, atol = 1e-03))
+        elif way == "bool_dqc_scf_re":
+            dqc_o_re = self._get_ovlp_dqc(rearrange=True)
+            return torch.all(torch.isclose(dqc_o_re, pyscf_o, atol = 1e-03))
+
         elif way == "dqc":
             """
             compares rearrange array with not rearrange array
@@ -298,12 +272,17 @@ class dft_system:
 
             counter_1 = 0 #couts elements of list_dqcore in list_dqco
             counter_2 = 0  #couts elements of list_dqco in list_dqcore
+
             for i in range(len(list_dqco)):
                 for j in range(len(list_dqcore)):
                     if list_dqcore[j] == list_dqco[i]:
                         counter_1 += 1
                     if  list_dqco[j] == list_dqcore[i]:
                         counter_2 += 1
+
+            print(dqc_o)
+            print(dqc_o_re)
+            print(torch.all(torch.isclose(dqc_o_re, pyscf_o ,atol= 1e-05)))
 
             if counter_1 == counter_2:
                 print("elements in the array are just on the wrong position")
@@ -527,8 +506,8 @@ if __name__ == "__main__":
 
     #func_dict = system.fcn_dict(system_ref)
 
-
-    print(system._reconf_scf_arr(desc="ovlp"))
+    print(system.ovlp_dqc_scf_eq("bool_dqc_scf_re"))
+    # print(system._reconf_scf_arr(desc="ovlp"))
 
 
 
