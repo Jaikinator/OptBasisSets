@@ -159,24 +159,16 @@ class dft_system:
         """
         mol = gto.Mole()
         mol.atom = self.atomstuc
-        mol.spin = 0
+        try:
+            mol.spin = 0
+        except:
+            mol.spin = 1
+
         mol.unit = 'Bohr'  # in Angstrom
         mol.verbose = 6
         mol.output = 'scf.out'
         mol.symmetry = False
         mol.basis  = self.basis
-
-        # mol.basis = gto.basis.parse("""
-        # Li    S
-        #     0.3683820000E+02       0.6966866381E-01
-        #     0.5481720000E+01       0.3813463493E+00
-        #     0.1113270000E+01       0.6817026244E+00
-        # Li    SP
-        #     0.5402050000E+00      -0.2631264058E+00       0.1615459708E+00
-        #     0.1022550000E+00       0.1143387418E+01       0.9156628347E+00
-        # Li    SP
-        #     0.2856450000E-01       0.1000000000E+01       0.1000000000E+01
-        # """)
 
         #print("basis scf", gto.basis.load(self.basis, 'Li'))
 
@@ -280,9 +272,9 @@ class dft_system:
                     if  list_dqco[j] == list_dqcore[i]:
                         counter_2 += 1
 
-            print(dqc_o)
-            print(dqc_o_re)
-            print(torch.all(torch.isclose(dqc_o_re, pyscf_o ,atol= 1e-05)))
+            # print(dqc_o)
+            # print(dqc_o_re)
+            # print(torch.all(torch.isclose(dqc_o_re, pyscf_o ,atol= 1e-05)))
 
             if counter_1 == counter_2:
                 print("elements in the array are just on the wrong position")
