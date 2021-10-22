@@ -110,22 +110,39 @@ class dft_system:
 
         basis = self.lbasis
         out_arr = []
-        #print(basis)
-        for i in range(len(basis)):
-            inner = []
-            for j in range(len(basis[i])):
-                if basis[i][j].angmom == 0:
-                    inner.append(basis[i][j])
-            out_arr.append(inner)
+        print(basis)
+
+        # read highest angmom for each atom:
+        max_angmom_arr = []
+
 
         for i in range(len(basis)):
-            inner = []
+            max_angmom_atom_arr = []
             for j in range(len(basis[i])):
-                if basis[i][j].angmom == 1:
-                    inner.append(basis[i][j])
-            for h in range(len(inner)):
-                out_arr[i].append(inner[h])
-        #print(out_arr)
+                max_angmom_atom_arr.append(basis[i][j].angmom)
+            max_angmom_arr.append(max(max_angmom_atom_arr))
+
+        # now rearrange basis:
+
+        for i in range(len(basis)):
+            angmomc = 0
+            inner = []
+            while angmomc <= max_angmom_arr[i]:
+                for j in range(len(basis[i])):
+                    if basis[i][j].angmom == angmomc:
+                        inner.append(basis[i][j])
+                angmomc += 1
+            out_arr.append(inner)
+
+        print(out_arr)
+        # for i in range(len(basis)):
+        #     inner = []
+        #     for j in range(len(basis[i])):
+        #         if basis[i][j].angmom == 1:
+        #             inner.append(basis[i][j])
+        #     for h in range(len(inner)):
+        #         out_arr[i].append(inner[h])
+        # print(out_arr)
         return out_arr
 
     def _get_ovlp_dqc(self, **kwargs):
@@ -159,10 +176,7 @@ class dft_system:
         """
         mol = gto.Mole()
         mol.atom = self.atomstuc
-        try:
-            mol.spin = 0
-        except:
-            mol.spin = 1
+
 
         mol.unit = 'Bohr'  # in Angstrom
         mol.verbose = 6
@@ -170,9 +184,14 @@ class dft_system:
         mol.symmetry = False
         mol.basis  = self.basis
 
-        #print("basis scf", gto.basis.load(self.basis, 'Li'))
+        print("basis scf", gto.basis.load(self.basis, 'Li'))
+        try:
+            mol.spin = 0
+            return mol.build()
+        except:
+            mol.spin = 1
+            return mol.build()
 
-        return mol.build()
 
     def _coeff_mat_scf(self):
         """
@@ -484,7 +503,7 @@ if __name__ == "__main__":
     # configure basis to optimize:
     ####################################################################################################################
 
-    basis = "3-21G"
+    basis = "cc-pvdz"
     system = dft_system(basis, atomstruc)
 
     ####################################################################################################################
@@ -498,7 +517,8 @@ if __name__ == "__main__":
 
     #func_dict = system.fcn_dict(system_ref)
 
-    print(system.ovlp_dqc_scf_eq("bool_dqc_scf_re"))
+    system._rearrange_basis_dqc()
+    #print(system.ovlp_dqc_scf_eq("bool_dqc_scf_re"))
     # print(system._reconf_scf_arr(desc="ovlp"))
 
 
@@ -523,4 +543,10 @@ if __name__ == "__main__":
     #     grady, = torch.autograd.grad(z, (y1,), retain_graph=True,
     #                                  create_graph=torch.is_grad_enabled())
 
+"""
+Basis Names:
+    3-21G
+    cc-pvdz
+
+"""
 
