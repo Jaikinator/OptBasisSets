@@ -6,7 +6,8 @@ import xitorch.optimize
 from dqc.utils.datastruct import AtomCGTOBasis
 import dqc.hamilton.intor as intor
 from dqc.api.parser import parse_moldesc
-import warnings
+import warnings #for warnings
+import os
 import numpy as np
 
 import pymatgen.core.periodic_table as peri
@@ -163,8 +164,28 @@ class dft_system:
     ################################
     #scf staff:
     ################################
-
-    def _create_scf_Mol(self,scfbasis = True ):
+    def _get_molbasis_fparser_scf(self):
+        """
+        function to override scf basis function with data from:
+        https://www.basissetexchange.org/
+        !!!here it's important to notice that the file has to be in the NWChem format.
+        As well as its has to be in the local content root folder NWChem_basis.
+        Just works for one input basis!!!
+        :return: mol.basis object
+        """
+        folderpath = "NWChem_basis"
+        if os.path.exists(folderpath):
+            try:
+                file = open(f"{folderpath}/{self.basis}.{self.elements[0]}.nw").read()
+                basis = {str(self.element_dict[self.elements[0]]) : gto.basis.parse(file)}
+            except:
+                warnings.warn("No NWChem dataset Continues with default scf basis")
+                print(f"tryed to open file: {folderpath}/{self.basis}.{self.elements[0]}.nw")
+                basis = self.basis
+            return basis
+        else:
+            raise Exception('folder NWChem_basis not found')
+    def _create_scf_Mol(self):
         """
         be aware here just basis as a string works
         :return: mol object
@@ -180,9 +201,9 @@ class dft_system:
         mol.verbose = 6
         mol.output = 'scf.out'
         mol.symmetry = False
-        #mol.basis  = self.basis
+        mol.basis  = self._get_molbasis_fparser_scf()
         #mol.basis = gto.basis.load(self.basis, 'Li')
-        mol.basis = {"Fe": gto.basis.parse(open("NWChem_basis/cc-pvdz.26.nw").read())}
+        #mol.basis = {"3": gto.basis.parse(open("NWChem_basis/cc-pvdz.3.nw").read())} #best method
         # print("mol.basis", mol.basis)
 
         # print("basis scf", gto.basis.load(self.basis,"Li"))
@@ -514,10 +535,9 @@ if __name__ == "__main__":
     ####################################################################################################################
     # create input dictionary for fcn()
 
-    #func_dict = system.fcn_dict(system_ref)
+    func_dict = system.fcn_dict(system_ref)
 
-    system._rearrange_basis_dqc()
-    print(system.ovlp_dqc_scf_eq("bool_dqc_scf_re"))
+    system._get_molbasis_fparser_scf()
     # print(system._reconf_scf_arr(desc="ovlp"))
 
 
