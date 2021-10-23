@@ -6,7 +6,7 @@ import xitorch.optimize
 from dqc.utils.datastruct import AtomCGTOBasis
 import dqc.hamilton.intor as intor
 from dqc.api.parser import parse_moldesc
-
+import warnings
 import numpy as np
 
 import pymatgen.core.periodic_table as peri
@@ -38,7 +38,7 @@ torch.set_printoptions(linewidth = 200)
 ########################################################################################################################
 
 class dft_system:
-    def __init__(self, basis :str, atomstruc : list, scf = True, requires_grad = False ):
+    def __init__(self, basis :str, atomstruc : list, scf = True, requires_grad = False, rearrange = True ):
         """
         class to define the systems to optimize.
         :param element: array, str or number of the element in the periodic table
@@ -52,6 +52,7 @@ class dft_system:
                             cartesian space. For example pos = [1.0, 1.0, 1.0]
         :param scf: if True you get the system as dqc as well as scf system.
         :param requires_grad: support gradient of torch.Tensor
+        :param rearrange: if True the dqc basis will be rearranged to match the basis read by scf
         """
         self.basis = basis
         self.atomstuc = atomstruc
@@ -59,10 +60,16 @@ class dft_system:
         self.element_dict = self._generateElementdict()
         self.elements = self._get_element_arr()
 
-        if requires_grad == False :
-            self.lbasis = self._loadbasis_dqc(requires_grad=False)  # loaded dqc basis
+        if rearrange == False:
+            if requires_grad == False :
+                self.lbasis = self._loadbasis_dqc(requires_grad=False)  # loaded dqc basis
+            else:
+                self.lbasis = self._loadbasis_dqc()
         else:
-            self.lbasis = self._loadbasis_dqc()
+            if requires_grad == False :
+                self.lbasis = self._rearrange_basis_dqc(requires_grad=False)  # loaded dqc basis
+            else:
+                self.lbasis = self._rearrange_basis_dqc()
 
         if scf == True:
 
@@ -107,9 +114,9 @@ class dft_system:
             basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis[i]}", **kwargs) for i in range(len(self.elements))]
         return basis
 
-    def _rearrange_basis_dqc(self):
+    def _rearrange_basis_dqc(self, **kwargs):
 
-        basis = self.lbasis
+        basis = self._loadbasis_dqc(**kwargs)
         out_arr = []
         # print(basis)
 
@@ -135,6 +142,7 @@ class dft_system:
                 angmomc += 1
             out_arr.append(inner)
 
+        warnings.warn("ATTENTION basis of dqc is rearranged")
         return  out_arr
 
     def _get_ovlp_dqc(self, **kwargs):
@@ -500,7 +508,7 @@ if __name__ == "__main__":
     ####################################################################################################################
     # configure reference basis:
     ####################################################################################################################
-    basis_ref = "pp"
+    basis_ref = "cc-pvdz"
     system_ref = dft_system(basis_ref, atomstruc, scf = False)
 
     ####################################################################################################################
