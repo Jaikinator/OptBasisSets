@@ -65,6 +65,7 @@ class dft_system:
             self.lbasis = self._loadbasis_dqc()
 
         if scf == True:
+
             self.mol = self._create_scf_Mol()
 
     ################################
@@ -95,7 +96,7 @@ class dft_system:
         https://www.basissetexchange.org/
 
         data of basis sets ist stored:
-        /home/user/anaconda3/envs/env/lib/python3.8/site-packages/dqc/api
+        /home/user/anaconda3/envs/env/lib/python3.8/site-packages/dqc/api/.database
 
         :param kwargs: requires_grad=False if basis is reference basis
         :return: array of basis
@@ -110,7 +111,7 @@ class dft_system:
 
         basis = self.lbasis
         out_arr = []
-        print(basis)
+        # print(basis)
 
         # read highest angmom for each atom:
         max_angmom_arr = []
@@ -134,16 +135,7 @@ class dft_system:
                 angmomc += 1
             out_arr.append(inner)
 
-        print(out_arr)
-        # for i in range(len(basis)):
-        #     inner = []
-        #     for j in range(len(basis[i])):
-        #         if basis[i][j].angmom == 1:
-        #             inner.append(basis[i][j])
-        #     for h in range(len(inner)):
-        #         out_arr[i].append(inner[h])
-        # print(out_arr)
-        return out_arr
+        return  out_arr
 
     def _get_ovlp_dqc(self, **kwargs):
         if "rearrange" in kwargs:
@@ -164,7 +156,7 @@ class dft_system:
     #scf staff:
     ################################
 
-    def _create_scf_Mol(self,spin =0):
+    def _create_scf_Mol(self,scfbasis = True ):
         """
         be aware here just basis as a string works
         :return: mol object
@@ -176,15 +168,17 @@ class dft_system:
         """
         mol = gto.Mole()
         mol.atom = self.atomstuc
-
-
         mol.unit = 'Bohr'  # in Angstrom
         mol.verbose = 6
         mol.output = 'scf.out'
         mol.symmetry = False
-        mol.basis  = self.basis
+        #mol.basis  = self.basis
+        #mol.basis = gto.basis.load(self.basis, 'Li')
+        mol.basis = {"Fe": gto.basis.parse(open("NWChem_basis/cc-pvdz.26.nw").read())}
+        # print("mol.basis", mol.basis)
 
-        print("basis scf", gto.basis.load(self.basis, 'Li'))
+        # print("basis scf", gto.basis.load(self.basis,"Li"))
+
         try:
             mol.spin = 0
             return mol.build()
@@ -496,8 +490,8 @@ if __name__ == "__main__":
     # configure atomic system:
     ####################################################################################################################
 
-    atomstruc = [['Li', [1.0, 0.0, 0.0]],
-                 ['Li', [-1.0, 0.0, 0.0]]]
+    atomstruc = [['Fe', [1.0, 0.0, 0.0]],
+                 ["Fe", [-1.0, 0.0, 0.0]]]
 
     ####################################################################################################################
     # configure basis to optimize:
@@ -505,7 +499,6 @@ if __name__ == "__main__":
 
     basis = "cc-pvdz"
     system = dft_system(basis, atomstruc)
-
     ####################################################################################################################
     # configure reference basis:
     ####################################################################################################################
@@ -518,7 +511,7 @@ if __name__ == "__main__":
     #func_dict = system.fcn_dict(system_ref)
 
     system._rearrange_basis_dqc()
-    #print(system.ovlp_dqc_scf_eq("bool_dqc_scf_re"))
+    print(system.ovlp_dqc_scf_eq("bool_dqc_scf_re"))
     # print(system._reconf_scf_arr(desc="ovlp"))
 
 
