@@ -8,6 +8,7 @@ import dqc.hamilton.intor as intor
 from dqc.api.parser import parse_moldesc
 import warnings #for warnings
 import os
+import basis_set_exchange as bse # basist set exchange libary
 import numpy as np
 
 import pymatgen.core.periodic_table as peri
@@ -168,23 +169,34 @@ class dft_system:
         """
         function to override scf basis function with data from:
         https://www.basissetexchange.org/
-        !!!here it's important to notice that the file has to be in the NWChem format.
-        As well as its has to be in the local content root folder NWChem_basis.
+        If the file doesn't exist it will be downloaded in the NWChem format.
         Just works for one input basis!!!
         :return: mol.basis object
         """
         folderpath = "NWChem_basis"
-        if os.path.exists(folderpath):
-            try:
-                file = open(f"{folderpath}/{self.basis}.{self.elements[0]}.nw").read()
-                basis = {str(self.element_dict[self.elements[0]]) : gto.basis.parse(file)}
-            except:
-                warnings.warn("No NWChem dataset Continues with default scf basis")
-                print(f"tryed to open file: {folderpath}/{self.basis}.{self.elements[0]}.nw")
-                basis = self.basis
-            return basis
+        if os.path.exists("NWChem_basis") == False:
+            warnings.warn("No NWChem_basis folder it will be created.")
+            os.mkdir("NWChem_basis")
+            fullpath = os.path.abspath("NWChem_basis")
+            print(f"NWChem_basis folder is created to {fullpath}")
+
+        if os.path.exists(f"{folderpath}/{self.basis}.{self.elements[0]}.nw"):
+            file = open(f"{folderpath}/{self.basis}.{self.elements[0]}.nw").read()
+            basis = {str(self.element_dict[self.elements[0]]) : gto.basis.parse(file)}
         else:
-            raise Exception('folder NWChem_basis not found')
+            print(f"No basis {self.basis} found for {self.element_dict[self.elements[0]]}.\n"
+                  f"try to get it from https://www.basissetexchange.org/")
+            basis = bse.get_basis(self.basis, elements=[self.element_dict[self.elements[0]]], fmt="nwchem")
+            fname = f"{folderpath}/{self.basis}.{self.elements[0]}.nw"
+            with open(fname, "w") as f:
+                f.write(basis)
+            print(f"Downloaded to {os.path.abspath(fname)}")
+        # except:
+        #     warnings.warn("No NWChem dataset Continues with default scf basis")
+        #     print(f"tryed to open file: {folderpath}/{self.basis}.{self.elements[0]}.nw")
+        #     basis = self.basis
+        return basis
+
     def _create_scf_Mol(self):
         """
         be aware here just basis as a string works
