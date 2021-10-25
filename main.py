@@ -191,10 +191,7 @@ class dft_system:
             with open(fname, "w") as f:
                 f.write(basis)
             print(f"Downloaded to {os.path.abspath(fname)}")
-        # except:
-        #     warnings.warn("No NWChem dataset Continues with default scf basis")
-        #     print(f"tryed to open file: {folderpath}/{self.basis}.{self.elements[0]}.nw")
-        #     basis = self.basis
+
         return basis
 
     def _create_scf_Mol(self):
@@ -468,7 +465,7 @@ def _crossoverlap(atomstruc : str, basis : list):
         atombases)  # creates an wrapper object to pass informations on lower functions
     return intor.overlap(wrap)
 
-def _maximise_overlap(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Tensor):
+def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Tensor):
     """
     Calculate the Projection from the old to the new Basis:
          P = C^T S_12 S⁻¹_22 S_21 C
@@ -518,10 +515,10 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
     # maximize overlap
 
-    projection = _maximise_overlap(coeff,colap,num_gauss)
-    projection = projection * system._get_occ()[system._get_occ() > 0]
+    _projection = projection(coeff,colap,num_gauss)
+    _projection = _projection * system._get_occ()[system._get_occ() > 0]
 
-    return -torch.trace(projection)/torch.sum(system._get_occ())
+    return -torch.trace(_projection)/torch.sum(system._get_occ())
 
 if __name__ == "__main__":
 
@@ -536,7 +533,7 @@ if __name__ == "__main__":
     # configure basis to optimize:
     ####################################################################################################################
 
-    basis = "3-21G"
+    basis = "cc-pvdz"
     system = dft_system(basis, atomstruc)
     ####################################################################################################################
     # configure reference basis:
@@ -548,8 +545,8 @@ if __name__ == "__main__":
     # create input dictionary for fcn()
 
     func_dict = system.fcn_dict(system_ref)
-
-    system._get_molbasis_fparser_scf()
+    print(fcn(**func_dict))
+    #system._get_molbasis_fparser_scf()
     # print(system._reconf_scf_arr(desc="ovlp"))
 
 
