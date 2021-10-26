@@ -27,7 +27,7 @@ def cuda_device_checker(memory  = False):
             print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
             print('Cached:   ', round(torch.cuda.memory_reserved(0) / 1024 ** 3, 1), 'GB')
 
-# cuda_device_checker()
+#cuda_device_checker()
 
 ########################################################################################################################
 # configure torch tensor
@@ -57,8 +57,8 @@ class dft_system:
         :param rearrange: if True the dqc basis will be rearranged to match the basis read by scf
         """
         self.basis = basis
-        self.atomstuc = atomstruc
-        self.atomstuc_dqc = self._arr_int_conv()
+        self.atomstruc = atomstruc
+        self.atomstruc_dqc = self._arr_int_conv()
         self.element_dict = self._generateElementdict()
         self.elements = self._get_element_arr()
 
@@ -86,7 +86,7 @@ class dft_system:
         converts the atomsruc array to an str for dqc
         :return: str
         """
-        return (str(self.atomstuc).replace("["," ")
+        return (str(self.atomstruc).replace("["," ")
                                 .replace("]"," ")
                                 .replace("'","")
                                 .replace(" , " , ";")
@@ -94,7 +94,7 @@ class dft_system:
                                 .replace("  ", " "))
 
     def get_atomstruc_dqc(self):
-        return self.atomstuc_dqc
+        return self.atomstruc_dqc
 
     def get_basis(self):
         return self.lbasis
@@ -110,42 +110,54 @@ class dft_system:
         :param kwargs: requires_grad=False if basis is reference basis
         :return: array of basis
         """
+
         if type(self.basis) is str:
-            basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis}", **kwargs) for i in range(len(self.elements))]
+            bdict = {}
+            for i in range(len(self.elements)):
+                bdict[self.element_dict[self.elements[i]]] = dqc.loadbasis(f"{self.elements[i]}:{self.basis}", **kwargs)
+            return bdict
+        elif type(self.basis) is  dict:
+            bdict = {}
+            for i in range(len(self.basis)):
+                bdict[self.element_dict[self.elements[i]]] = dqc.loadbasis(f"{self.elements[i]}:{self.basis[self.element_dict[self.elements[i]]]}", **kwargs)
+            return bdict
         else:
-            basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis[i]}", **kwargs) for i in range(len(self.elements))]
-        return basis
+            print("do nothing to load basis")
+            # basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis[i]}", **kwargs) for i in range(len(self.elements))]
+            # return basis
+
 
     def _rearrange_basis_dqc(self, **kwargs):
-
         basis = self._loadbasis_dqc(**kwargs)
-        out_arr = []
-        # print(basis)
+        bout = {}
+
 
         # read highest angmom for each atom:
         max_angmom_arr = []
 
-
-        for i in range(len(basis)):
+        for key in basis:
             max_angmom_atom_arr = []
-            for j in range(len(basis[i])):
-                max_angmom_atom_arr.append(basis[i][j].angmom)
+            for j in range(len(basis[key])):
+                max_angmom_atom_arr.append(basis[key][j].angmom)
             max_angmom_arr.append(max(max_angmom_atom_arr))
 
         # now rearrange basis:
-
-        for i in range(len(basis)):
+        cf_angmon = 0 # counter for angmom for each atom
+        for key in basis:
             angmomc = 0
             inner = []
-            while angmomc <= max_angmom_arr[i]:
-                for j in range(len(basis[i])):
-                    if basis[i][j].angmom == angmomc:
-                        inner.append(basis[i][j])
+
+            while angmomc <= max_angmom_arr[cf_angmon]:
+                for j in range(len(basis[key])):
+                    if basis[key][j].angmom == angmomc:
+                        inner.append(basis[key][j])
                 angmomc += 1
-            out_arr.append(inner)
+
+            cf_angmon += 1
+            bout[key] = inner
 
         warnings.warn("ATTENTION basis of dqc is rearranged")
-        return  out_arr
+        return  bout
 
     def _get_ovlp_dqc(self, **kwargs):
         if "rearrange" in kwargs:
@@ -170,7 +182,6 @@ class dft_system:
         function to override scf basis function with data from:
         https://www.basissetexchange.org/
         If the file doesn't exist it will be downloaded in the NWChem format.
-        Just works for one input basis!!!
         :return: mol.basis object
         """
         folderpath = "NWChem_basis"
@@ -180,19 +191,28 @@ class dft_system:
             fullpath = os.path.abspath("NWChem_basis")
             print(f"NWChem_basis folder is created to {fullpath}")
 
-        if os.path.exists(f"{folderpath}/{self.basis}.{self.elements[0]}.nw"):
-            file = open(f"{folderpath}/{self.basis}.{self.elements[0]}.nw").read()
-            basis = {str(self.element_dict[self.elements[0]]) : gto.basis.parse(file)}
-        else:
-            print(f"No basis {self.basis} found for {self.element_dict[self.elements[0]]}.\n"
-                  f"try to get it from https://www.basissetexchange.org/")
-            basis = bse.get_basis(self.basis, elements=[self.element_dict[self.elements[0]]], fmt="nwchem")
-            fname = f"{folderpath}/{self.basis}.{self.elements[0]}.nw"
-            with open(fname, "w") as f:
-                f.write(basis)
-            print(f"Downloaded to {os.path.abspath(fname)}")
+        bdict = {}
 
-        return basis
+        for i in range(len(self.elements)):
+            if isinstance(self.basis,str):
+                basisname = self.basis
+            else:
+                basisname = self.basis[self.element_dict[self.elements[i]]]
+
+            if os.path.exists(f"{folderpath}/{basisname}.{self.elements[i]}.nw") == False:
+                print(f"No basis {self.basis} found for {self.element_dict[self.elements[i]]}."
+                      f" Try to get it from https://www.basissetexchange.org/")
+                basis = bse.get_basis(self.basis, elements=[self.element_dict[self.elements[i]]], fmt="nwchem")
+                fname = f"{folderpath}/{basisname}.{self.elements[0]}.nw"
+                with open(fname, "w") as f:
+                    f.write(basis)
+                print(f"Downloaded to {os.path.abspath(fname)}")
+
+            file = open(f"{folderpath}/{basisname}.{self.elements[i]}.nw").read()
+            bdict[str(self.element_dict[self.elements[i]])] = gto.basis.parse(file)
+        return bdict
+
+
 
     def _create_scf_Mol(self):
         """
@@ -205,18 +225,13 @@ class dft_system:
         ~/anaconda3/envs/OptimizeBasisFunc/lib/python3.8/site-packages/pyscf/gto/basis
         """
         mol = gto.Mole()
-        mol.atom = self.atomstuc
+        mol.atom = self.atomstruc
         mol.unit = 'Bohr'  # in Angstrom
         mol.verbose = 6
         mol.output = 'scf.out'
         mol.symmetry = False
         mol.basis  = self._get_molbasis_fparser_scf()
         #mol.basis = gto.basis.load(self.basis, 'Li')
-        #mol.basis = {"3": gto.basis.parse(open("NWChem_basis/cc-pvdz.3.nw").read())} #best method
-        # print("mol.basis", mol.basis)
-
-        # print("basis scf", gto.basis.load(self.basis,"Li"))
-
         try:
             mol.spin = 0
             return mol.build()
@@ -228,6 +243,7 @@ class dft_system:
     def _coeff_mat_scf(self):
         """
         just creates the coefficiency matrix for different input basis
+        :return coefficient- matrix of just the occupied orbitals
         """
 
         mf = scf.RHF(self.mol)
@@ -249,7 +265,15 @@ class dft_system:
         """
         return torch.Tensor(self.mol.get_ovlp()).type(torch.float64)
 
-
+    @property
+    def get_basis_scf(self):
+        return self._get_molbasis_fparser_scf()
+    @property
+    def get_coeff_scf(self):
+        return self._coeff_mat_scf()
+    @property
+    def get_mol_scf(self):
+        return self._create_scf_Mol()
     ################################
     #extra staff to configure class:
     ################################
@@ -258,7 +282,7 @@ class dft_system:
         """
         create array with all elements in the system
         """
-        elements_arr  = [self.atomstuc[i][0] for i in range(len(atomstruc))]
+        elements_arr  = [self.atomstruc[i][0] for i in range(len(atomstruc))]
         for i in range(len(elements_arr)):
             if type(elements_arr[i]) is str:
                 elements_arr[i] = self.element_dict[elements_arr[i]]
@@ -384,19 +408,42 @@ class dft_system:
                 "bpacker": bpacker,
                 "bparams_ref": bparams_ref,
                 "bpacker_ref": bpacker_ref,
-                "atomstruc_dqc" : self.atomstuc_dqc,
-                "coeffM" : self._coeff_mat_scf()}
+                "atomstruc_dqc" : self.atomstruc_dqc,
+                "atomstruc" : self.atomstruc,
+                "coeffM" : self._coeff_mat_scf(),
+                "occ_scf" : self._get_occ()}
 
 
 ########################################################################################################################
 # now do the actual calculations
 ########################################################################################################################
+def blister(atomstruc : list, basis : dict, refbasis :dict):
+    """
+    function to convert the basis dict based on the given atomstruc array
+    :param atomstruc: atomstruc array
+    :param basis: basis dict first basis
+    :param refbasis: reference basis dictionary
+    :return:
+    """
+
+    elem = [atomstruc[i][0] for i in range(len(atomstruc))]
+    b_arr = [basis[elem[i]] for i in range(len(elem))]
+    bref_arr = [refbasis[elem[i]] for i in range(len(elem))]
+    return b_arr +bref_arr
+
+def change_norm_state(basis):
+    """
+    change bool value for the normalization of an CGTOBasis
+    """
+    for b in basis:
+        for el in b:
+                el.normalized = False
 
 def _num_gauss(basis : list, restbasis : list):
     """
-    calc the number of primitive gaussians in a basis set so that the elements of an overlap matrix can be defined.
+    calc the number of primitive Gaussian's in a basis set so that the elements of an overlap matrix can be defined.
     :param basis: list
-        basis to get opimized
+        basis to get optimized
     :param restbasis: list
         optimized basis
     :return: int
@@ -407,11 +454,11 @@ def _num_gauss(basis : list, restbasis : list):
     n_restbasis = 0
 
     for b in basis:
-        for el in b:
+        for el in basis[b]:
             n_basis += 2 * el.angmom + 1
 
     for b in restbasis:
-        for el in b:
+        for el in restbasis[b]:
             n_restbasis += 2 * el.angmom + 1
 
     return [n_basis, n_restbasis]
@@ -449,6 +496,10 @@ def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
         raise UnicodeError("no direction specified")
 
 def _crossoverlap(atomstruc : str, basis : list):
+
+    # change normalization state so that it will be normalized by AtomCGTOBasis again
+    change_norm_state(basis)
+
     #calculate cross overlap matrix
 
     atomzs, atompos = parse_moldesc(atomstruc)
@@ -460,7 +511,6 @@ def _crossoverlap(atomstruc : str, basis : list):
     atompos = torch.cat([atompos, atompos])
     atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
     # creats an list with AtomCGTOBasis object for each atom (including  all previous informations in one array element)
-
     wrap = dqc.hamilton.intor.LibcintWrapper(
         atombases)  # creates an wrapper object to pass informations on lower functions
     return intor.overlap(wrap)
@@ -490,7 +540,7 @@ def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Ten
 
 def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
         , bparams_ref: torch.Tensor, bpacker_ref: xitorch._core.packer.Packer
-        , atomstruc_dqc: str, coeffM : torch.Tensor):
+        , atomstruc_dqc: str, atomstruc : list, coeffM : torch.Tensor, occ_scf : torch.Tensor):
 
     """
     Function to optimize
@@ -503,22 +553,39 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     """
 
     basis = bpacker.construct_from_tensor(bparams) #create a CGTOBasis Object (set informations about gradient, normalization etc)
+
     ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
+
     num_gauss = _num_gauss(basis, ref_basis)
-    basis_cross = basis + ref_basis
 
-    atomstruc = atomstruc_dqc
+    basis_cross = blister(atomstruc,basis,ref_basis)
 
-    # calculate cross overlap matrix
-    colap = _crossoverlap(atomstruc, basis_cross)
-    coeff = coeffM
+    colap = _crossoverlap(atomstruc_dqc, basis_cross)
 
     # maximize overlap
 
-    _projection = projection(coeff,colap,num_gauss)
-    _projection = _projection * system._get_occ()[system._get_occ() > 0]
+    _projection = projection(coeffM,colap,num_gauss)
+    _projection = _projection * occ_scf[occ_scf > 0]
 
-    return -torch.trace(_projection)/torch.sum(system._get_occ())
+    # atomzs, atompos = parse_moldesc(atomstruc_dqc)
+    # atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis_cross[i], pos=atompos[i]) for i in range(len(basis))]
+    # wrap2 = dqc.hamilton.intor.LibcintWrapper(
+    # atombases)  # creates an wrapper object to pass informations on lower functions
+    # ovlp = intor.overlap(wrap2)
+    # # print(ovlp)
+    #
+    # atomzs, atompos = parse_moldesc(atomstruc_dqc)
+    # atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis_cross[i+len(basis)], pos=atompos[i]) for i in range(len(basis))]
+    # wrap = dqc.hamilton.intor.LibcintWrapper(
+    #     atombases)  # creates an wrapper object to pass informations on lower functions
+    # ref_ovlp = intor.overlap(wrap)
+    # # print(colap,"\n", ovlp)
+
+
+    # change normalized state from true to False to get normalization in the next step
+    change_norm_state(basis_cross)
+    # print( projection(coeffM,colap,num_gauss))
+    return -torch.trace(_projection)/torch.sum(occ_scf)
 
 if __name__ == "__main__":
 
@@ -526,42 +593,44 @@ if __name__ == "__main__":
     # configure atomic system:
     ####################################################################################################################
 
-    atomstruc = [['Li', [1.0, 0.0, 0.0]],
-                 ["Li", [-1.0, 0.0, 0.0]]]
+    atomstruc = [['H', [1.0, 0.0, 0.0]]]
 
     ####################################################################################################################
     # configure basis to optimize:
     ####################################################################################################################
 
-    basis = "cc-pvdz"
+    basis = "3-21G"
     system = dft_system(basis, atomstruc)
     ####################################################################################################################
     # configure reference basis:
     ####################################################################################################################
     basis_ref = "cc-pvdz"
-    system_ref = dft_system(basis_ref, atomstruc, scf = False)
+    system_ref = dft_system(basis_ref, atomstruc)
 
     ####################################################################################################################
     # create input dictionary for fcn()
-
+    proj_scf = scf.addons.project_mo_nr2r(system.get_mol_scf, np.array(system.get_coeff_scf), system.get_mol_scf)
+    print(proj_scf.real)
     func_dict = system.fcn_dict(system_ref)
-    print(fcn(**func_dict))
+
     #system._get_molbasis_fparser_scf()
     # print(system._reconf_scf_arr(desc="ovlp"))
 
-
-
-    #print(fcn(**func_dict))
+    fcn(**func_dict)
 
 
 #######################
-
+    #
     # min_bparams = xitorch.optimize.minimize(fcn, func_dict["bparams"], (func_dict["bpacker"],
     #                                                                     func_dict["bparams_ref"],
     #                                                                     func_dict["bpacker_ref"],
     #                                                                     func_dict["atomstruc_dqc"],
-    #                                                                     func_dict["coeffM"] ,),
-    #                                         method = "Adam",step = 2e-3, maxiter = 50, verbose = True)
+    #                                                                     func_dict["atomstruc"],
+    #                                                                     func_dict["coeffM"],),
+    #                                         method = "Adam",step = 2e-3, maxiter = 110, verbose = True)
+    #
+    # func_dict["bparams"] = min_bparams
+    # fcn(**func_dict)
 
     # def _min_fwd_fcn(y, *params):
     #     pfunc = get_pure_function(fcn)
