@@ -274,6 +274,9 @@ class dft_system:
     @property
     def get_mol_scf(self):
         return self._create_scf_Mol()
+    @property
+    def get_occ_scf(self):
+        return self._get_occ()
     ################################
     #extra staff to configure class:
     ################################
@@ -584,7 +587,7 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
     # change normalized state from true to False to get normalization in the next step
     change_norm_state(basis_cross)
-    # print( projection(coeffM,colap,num_gauss))
+    print( projection(coeffM,colap,num_gauss))
     return -torch.trace(_projection)/torch.sum(occ_scf)
 
 if __name__ == "__main__":
@@ -609,8 +612,9 @@ if __name__ == "__main__":
 
     ####################################################################################################################
     # create input dictionary for fcn()
-    proj_scf = scf.addons.project_mo_nr2r(system.get_mol_scf, np.array(system.get_coeff_scf), system.get_mol_scf)
-    print(proj_scf.real)
+    proj_scf = scf.addons.project_mo_nr2nr(system.get_mol_scf, np.array(system.get_coeff_scf), system.get_mol_scf)
+    print(proj_scf.real * np.array(system.get_occ_scf)[np.array(system.get_occ_scf) > 0])
+
     func_dict = system.fcn_dict(system_ref)
 
     #system._get_molbasis_fparser_scf()
