@@ -243,12 +243,12 @@ class dft_system:
     def _coeff_mat_scf(self):
         """
         just creates the coefficiency matrix for different input basis
-        :return coefficient- matrix of just the occupied orbitals
+        :return coefficient- matrix
         """
 
         mf = scf.RHF(self.mol)
         mf.kernel()
-        return torch.tensor(mf.mo_coeff[:, mf.mo_occ > 0.])
+        return torch.tensor(mf.mo_coeff)
 
     def _get_occ(self):
         """
@@ -271,6 +271,12 @@ class dft_system:
     @property
     def get_coeff_scf(self):
         return self._coeff_mat_scf()
+    @property
+    def get_coeff_scf(self):
+        """
+         coefficient- matrix of just the occupied orbitals
+        """
+        return self._coeff_mat_scf()[self._coeff_mat_scf()>0]
     @property
     def get_mol_scf(self):
         return self._create_scf_Mol()
@@ -530,9 +536,10 @@ def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Ten
     S_12 = _cross_selcet(colap, num_gauss, "S_12")
     S_21 = _cross_selcet(colap, num_gauss, "S_21")
     S_22 = _cross_selcet(colap, num_gauss, "S_22")
-
+    print(S_12)
     s21_c = torch.matmul(S_12, coeff)
     s22_s21c = torch.matmul(torch.inverse(S_22), s21_c)
+    print("s22_s21c" ,s22_s21c)
     s12_s22s21c = torch.matmul(S_21, s22_s21c)
     P = torch.matmul(coeff.T, s12_s22s21c)
     return P
@@ -587,7 +594,7 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
     # change normalized state from true to False to get normalization in the next step
     change_norm_state(basis_cross)
-    print( projection(coeffM,colap,num_gauss))
+    print("porjection func:", projection(coeffM,colap,num_gauss))
     return -torch.trace(_projection)/torch.sum(occ_scf)
 
 if __name__ == "__main__":
@@ -607,13 +614,15 @@ if __name__ == "__main__":
     ####################################################################################################################
     # configure reference basis:
     ####################################################################################################################
-    basis_ref = "cc-pvdz"
+    basis_ref = "3-21G"
     system_ref = dft_system(basis_ref, atomstruc)
 
     ####################################################################################################################
     # create input dictionary for fcn()
-    proj_scf = scf.addons.project_mo_nr2nr(system.get_mol_scf, np.array(system.get_coeff_scf), system.get_mol_scf)
-    print(proj_scf.real * np.array(system.get_occ_scf)[np.array(system.get_occ_scf) > 0])
+    proj_scf = scf.addons.project_mo_nr2nr(system.get_mol_scf, np.array(system.get_coeff_scf), system_ref.get_mol_scf)
+    cross_ovlp_scf = gto.mole.intor_cross('int1e_ovlp', system.get_mol_scf,system_ref.get_mol_scf)
+    print("cross_ovlp_scf", cross_ovlp_scf)
+    print("proj_scf", proj_scf)
 
     func_dict = system.fcn_dict(system_ref)
 
