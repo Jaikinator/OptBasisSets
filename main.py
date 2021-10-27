@@ -536,7 +536,7 @@ def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Ten
     S_12 = _cross_selcet(colap, num_gauss, "S_12")
     S_21 = _cross_selcet(colap, num_gauss, "S_21")
     S_22 = _cross_selcet(colap, num_gauss, "S_22")
-    print(S_12)
+    print("S_12", S_12)
     s21_c = torch.matmul(S_12, coeff)
     s22_s21c = torch.matmul(torch.inverse(S_22), s21_c)
     print("s22_s21c" ,s22_s21c)
