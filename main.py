@@ -159,13 +159,10 @@ class dft_system:
         warnings.warn("ATTENTION basis of dqc is rearranged")
         return  bout
 
-    def _get_ovlp_dqc(self, **kwargs):
-        if "rearrange" in kwargs:
-            if kwargs[ "rearrange"] == True:
-                basis = self._rearrange_basis_dqc()
-        else:
-            basis = self.lbasis
+    def _get_ovlp_dqc(self):
 
+        elem = [self.atomstruc[i][0] for i in range(len(self.atomstruc))]
+        basis = [self.lbasis[elem[i]] for i in range(len(elem))]
         atomzs, atompos = parse_moldesc(system.get_atomstruc_dqc())
         atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
         wrap = dqc.hamilton.intor.LibcintWrapper(
@@ -173,7 +170,9 @@ class dft_system:
 
         return intor.overlap(wrap)
 
-
+    @property
+    def get_ovlp_dqc(self):
+        return self._get_ovlp_dqc()
     ################################
     #scf staff:
     ################################
@@ -272,17 +271,21 @@ class dft_system:
     def get_coeff_scf(self):
         return self._coeff_mat_scf()
     @property
-    def get_coeff_scf(self):
+    def get_occ_coeff_scf(self):
         """
          coefficient- matrix of just the occupied orbitals
         """
-        return self._coeff_mat_scf()[self._coeff_mat_scf()>0]
+        return self._coeff_mat_scf[self._coeff_mat_scf>0]
     @property
     def get_mol_scf(self):
         return self._create_scf_Mol()
     @property
     def get_occ_scf(self):
         return self._get_occ()
+
+    @property
+    def get_ovlp_scf(self):
+        return self._get_ovlp_sfc()
     ################################
     #extra staff to configure class:
     ################################
@@ -438,7 +441,7 @@ def blister(atomstruc : list, basis : dict, refbasis :dict):
     elem = [atomstruc[i][0] for i in range(len(atomstruc))]
     b_arr = [basis[elem[i]] for i in range(len(elem))]
     bref_arr = [refbasis[elem[i]] for i in range(len(elem))]
-    return b_arr +bref_arr
+    return b_arr + bref_arr
 
 def change_norm_state(basis):
     """
@@ -507,7 +510,7 @@ def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
 def _crossoverlap(atomstruc : str, basis : list):
 
     # change normalization state so that it will be normalized by AtomCGTOBasis again
-    change_norm_state(basis)
+    # change_norm_state(basis)
 
     #calculate cross overlap matrix
 
@@ -575,6 +578,7 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     # maximize overlap
 
     _projection = projection(coeffM,colap,num_gauss)
+    # print("_projection",_projection)
     _projection = _projection * occ_scf[occ_scf > 0]
 
     # atomzs, atompos = parse_moldesc(atomstruc_dqc)
@@ -594,7 +598,6 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
     # change normalized state from true to False to get normalization in the next step
     change_norm_state(basis_cross)
-    print("porjection func:", projection(coeffM,colap,num_gauss))
     return -torch.trace(_projection)/torch.sum(occ_scf)
 
 if __name__ == "__main__":
@@ -621,15 +624,22 @@ if __name__ == "__main__":
     # create input dictionary for fcn()
     proj_scf = scf.addons.project_mo_nr2nr(system.get_mol_scf, np.array(system.get_coeff_scf), system_ref.get_mol_scf)
     cross_ovlp_scf = gto.mole.intor_cross('int1e_ovlp', system.get_mol_scf,system_ref.get_mol_scf)
-    print("cross_ovlp_scf", cross_ovlp_scf)
-    print("proj_scf", proj_scf)
 
+    print("ovlp scf 3-31G\n", system.get_ovlp_scf)
+    # print("ovlp scf cc-pvdz\n", system_ref.get_ovlp_scf)
+    # print("cross_ovlp_scf\n", cross_ovlp_scf)
+    print("proj_scf\n", proj_scf)
+
+    print("ovlp dqc 3-21G: \n", system.get_ovlp_dqc)
+    # print("ovlp_ref cc-pvdz:\n", system_ref.get_ovlp_dqc)
     func_dict = system.fcn_dict(system_ref)
 
     #system._get_molbasis_fparser_scf()
     # print(system._reconf_scf_arr(desc="ovlp"))
 
     fcn(**func_dict)
+
+
 
 
 #######################
