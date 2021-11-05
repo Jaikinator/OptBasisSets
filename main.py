@@ -512,12 +512,13 @@ def _crossoverlap(atomstruc : str, basis : list):
     # change normalization state so that it will be normalized by AtomCGTOBasis again
     # change_norm_state(basis)
 
-    #calculate cross overlap matrix
+    # calculate cross overlap matrix:
 
     atomzs, atompos = parse_moldesc(atomstruc)
+
     # atomzs : Atomic number (torch.tensor); len: number of Atoms
     # atompos : atom positions tensor of shape (3x len: number of Atoms )
-    # now double both atom informations to use is for the second basis set
+    # now double both atom information to use is for the second basis set
 
     atomzs = torch.cat([atomzs, atomzs])
     atompos = torch.cat([atompos, atompos])
@@ -539,10 +540,9 @@ def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Ten
     S_12 = _cross_selcet(colap, num_gauss, "S_12")
     S_21 = _cross_selcet(colap, num_gauss, "S_21")
     S_22 = _cross_selcet(colap, num_gauss, "S_22")
-    print("S_12", S_12)
+
     s21_c = torch.matmul(S_12, coeff)
     s22_s21c = torch.matmul(torch.inverse(S_22), s21_c)
-    print("s22_s21c" ,s22_s21c)
     s12_s22s21c = torch.matmul(S_21, s22_s21c)
     P = torch.matmul(coeff.T, s12_s22s21c)
     return P
@@ -564,8 +564,9 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     :param atomstruc_dqc: string of atom structure
     :return:
     """
-
-    basis = bpacker.construct_from_tensor(bparams) #create a CGTOBasis Object (set informations about gradient, normalization etc)
+    print(bparams)
+    tens = torch.tensor([bparams[0], bparams[1], 1.4079, 1.9778, bparams[2], 0.7074],dtype=torch.float64,requires_grad=True)
+    basis = bpacker.construct_from_tensor(tens) #create a CGTOBasis Object (set informations about gradient, normalization etc)
 
     ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
 
@@ -625,32 +626,46 @@ if __name__ == "__main__":
     proj_scf = scf.addons.project_mo_nr2nr(system.get_mol_scf, np.array(system.get_coeff_scf), system_ref.get_mol_scf)
     cross_ovlp_scf = gto.mole.intor_cross('int1e_ovlp', system.get_mol_scf,system_ref.get_mol_scf)
 
-    print("ovlp scf 3-31G\n", system.get_ovlp_scf)
-    # print("ovlp scf cc-pvdz\n", system_ref.get_ovlp_scf)
-    # print("cross_ovlp_scf\n", cross_ovlp_scf)
-    print("proj_scf\n", proj_scf)
-
-    print("ovlp dqc 3-21G: \n", system.get_ovlp_dqc)
+    # print("ovlp scf 3-31G\n", system.get_ovlp_scf)
+    # # print("ovlp scf cc-pvdz\n", system_ref.get_ovlp_scf)
+    # # print("cross_ovlp_scf\n", cross_ovlp_scf)
+    # print("proj_scf\n", proj_scf)
+    #
+    # print("ovlp dqc 3-21G: \n", system.get_ovlp_dqc)
     # print("ovlp_ref cc-pvdz:\n", system_ref.get_ovlp_dqc)
     func_dict = system.fcn_dict(system_ref)
 
     #system._get_molbasis_fparser_scf()
     # print(system._reconf_scf_arr(desc="ovlp"))
 
-    fcn(**func_dict)
+    # fcn(**func_dict)
 
+# basis = [dqc.loadbasis("1:cc-pvdz")]
+# for i in range(5):
+#     change_norm_state(basis)
+#     m = dqc.Mol("H 1 0 0", basis=basis)
+#     atombases = [
+#        AtomCGTOBasis(atomz=m.atomzs[i], bases=basis[i], pos=m.atompos[i]) \
+#         for i in range(len(basis))]
+#     print(atombases)
+#     wrap = dqc.hamilton.intor.LibcintWrapper(atombases)
+#     dqc_o = intor.overlap(wrap)
+#
 
 
 
 #######################
     #
-    # min_bparams = xitorch.optimize.minimize(fcn, func_dict["bparams"], (func_dict["bpacker"],
-    #                                                                     func_dict["bparams_ref"],
-    #                                                                     func_dict["bpacker_ref"],
-    #                                                                     func_dict["atomstruc_dqc"],
-    #                                                                     func_dict["atomstruc"],
-    #                                                                     func_dict["coeffM"],),
-    #                                         method = "Adam",step = 2e-3, maxiter = 110, verbose = True)
+    print(func_dict["bparams"])
+    func_dict["bparams"] = torch.tensor([5.4472, 0.8245, 0.1832], dtype=torch.float64,requires_grad=True)
+    print(system.lbasis)
+    min_bparams = xitorch.optimize.minimize(fcn,  func_dict["bparams"], (func_dict["bpacker"],
+                                                                        func_dict["bparams_ref"],
+                                                                        func_dict["bpacker_ref"],
+                                                                        func_dict["atomstruc_dqc"],
+                                                                        func_dict["atomstruc"],
+                                                                        func_dict["coeffM"],
+                                                                        func_dict["occ_scf"],),step = 2e-3, maxiter = 110, verbose = True)# ,method = "Adam"
     #
     # func_dict["bparams"] = min_bparams
     # fcn(**func_dict)
