@@ -254,6 +254,7 @@ class dft_system:
         """
         get density matrix
         """
+
         mf = scf.RHF(self.mol)
         mf.kernel()
         return torch.tensor(mf.get_occ())
@@ -445,7 +446,7 @@ def blister(atomstruc : list, basis : dict, refbasis :dict):
     return b_arr + bref_arr
 
 
-def wfnormalize_(CGTOBasis):
+def wfnormalize_(CGTOB):
     """
     copy of ~/dqc/utils/datastruct.py wfnormalize_ of CGTBasis Class
     :param CGTOBasis: Class Object
@@ -464,22 +465,22 @@ def wfnormalize_(CGTOBasis):
     # if self.normalized:
     #     return self
 
-    coeffs = CGTOBasis.coeffs
+    coeffs = CGTOB.coeffs
 
     # normalize to have individual gaussian integral to be 1 (if coeff is 1)
 
-    if not CGTOBasis.normalized:
-        coeffs = coeffs / torch.sqrt(gaussian_int(2 * CGTOBasis.angmom + 2, 2 * CGTOBasis.alphas))
+    if not CGTOB.normalized:
+        coeffs = coeffs / torch.sqrt(gaussian_int(2 * CGTOB.angmom + 2, 2 * CGTOB.alphas))
     # normalize the coefficients in the basis (because some basis such as
     # def2-svp-jkfit is not normalized to have 1 in overlap)
-    ee = CGTOBasis.alphas.unsqueeze(-1) + CGTOBasis.alphas.unsqueeze(-2)  # (ngauss, ngauss)
-    ee = gaussian_int(2 * CGTOBasis.angmom + 2, ee)
+    ee = CGTOB.alphas.unsqueeze(-1) + CGTOB.alphas.unsqueeze(-2)  # (ngauss, ngauss)
+    ee = gaussian_int(2 * CGTOB.angmom + 2, ee)
     s1 = 1 / torch.sqrt(torch.einsum("a,ab,b", coeffs, ee, coeffs))
     coeffs = coeffs * s1
 
-    CGTOBasis.coeffs = coeffs
-    CGTOBasis.normalized = True
-    return CGTOBasis
+    CGTOB.coeffs = coeffs
+    CGTOB.normalized = True
+    return CGTOB
 
 
 def _num_gauss(basis : list, restbasis : list):
@@ -597,12 +598,11 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     """
 
     basis = bpacker.construct_from_tensor(bparams) #create a CGTOBasis Object (set informations about gradient, normalization etc)
-
-    for bs in basis:
-        for f in range(len(basis[bs])):
-            basis[bs][f] = wfnormalize_(basis[bs][f])
-
-
+    # print(basis)
+    # for bs in basis:
+    #     for f in range(len(basis[bs])):
+    #         basis[bs][f] = wfnormalize_(basis[bs][f])
+    # print(basis)
     ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
 
     num_gauss = _num_gauss(basis, ref_basis)
@@ -610,11 +610,10 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     basis_cross = blister(atomstruc,basis,ref_basis)
 
     colap = _crossoverlap(atomstruc_dqc, basis_cross)
-
     # maximize overlap
-
+    print(colap)
     _projection = projection(coeffM,colap,num_gauss)
-    # print("_projection",_projection)
+    # print(_projection, occ_scf[occ_scf >0])
     _projection = _projection * occ_scf[occ_scf > 0]
 
     # atomzs, atompos = parse_moldesc(atomstruc_dqc)
@@ -633,7 +632,6 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
 
     # change normalized state from true to False to get normalization in the next step
-
     return -torch.trace(_projection)/torch.sum(occ_scf)
 
 if __name__ == "__main__":
@@ -642,7 +640,7 @@ if __name__ == "__main__":
     # configure atomic system:
     ####################################################################################################################
 
-    atomstruc = [['Li', [1.0, 0.0, 0.0]]]
+    atomstruc = [['H', [1.0, 0.0, 0.0]]]
 
     ####################################################################################################################
     # configure basis to optimize:
@@ -653,13 +651,13 @@ if __name__ == "__main__":
     ####################################################################################################################
     # configure reference basis:
     ####################################################################################################################
-    basis_ref = "3-21G"
+    basis_ref = "cc-pvdz"
     system_ref = dft_system(basis_ref, atomstruc)
 
     ####################################################################################################################
     # create input dictionary for fcn()
-    proj_scf = scf.addons.project_mo_nr2nr(system.get_mol_scf, np.array(system.get_coeff_scf), system_ref.get_mol_scf)
-    cross_ovlp_scf = gto.mole.intor_cross('int1e_ovlp', system.get_mol_scf,system_ref.get_mol_scf)
+    # proj_scf = scf.addons.project_mo_nr2nr(system.get_mol_scf, np.array(system.get_coeff_scf), system_ref.get_mol_scf)
+    # cross_ovlp_scf = gto.mole.intor_cross('int1e_ovlp', system.get_mol_scf,system_ref.get_mol_scf)
 
     # print("ovlp scf 3-31G\n", system.get_ovlp_scf)
     # # print("ovlp scf cc-pvdz\n", system_ref.get_ovlp_scf)
@@ -668,8 +666,8 @@ if __name__ == "__main__":
     #
     # print("ovlp dqc 3-21G: \n", system.get_ovlp_dqc)
     # print("ovlp_ref cc-pvdz:\n", system_ref.get_ovlp_dqc)
-    func_dict = system.fcn_dict(system_ref)
-    fcn(**func_dict)
+    # func_dict = system.fcn_dict(system_ref)
+    # fcn(**func_dict)
     #system._get_molbasis_fparser_scf()
     # print(system._reconf_scf_arr(desc="ovlp"))
 
@@ -694,17 +692,15 @@ if __name__ == "__main__":
     # print(func_dict["bparams"])
     # func_dict["bparams"] = torch.tensor([5.4472, 0.8245, 0.1832], dtype=torch.float64,requires_grad=True)
     # print(system.lbasis)
+    func_dict = system.fcn_dict(system_ref)
+    min_bparams = xitorch.optimize.minimize(fcn,  func_dict["bparams"], (func_dict["bpacker"],
+                                                                        func_dict["bparams_ref"],
+                                                                        func_dict["bpacker_ref"],
+                                                                        func_dict["atomstruc_dqc"],
+                                                                        func_dict["atomstruc"],
+                                                                        func_dict["coeffM"],
+                                                                        func_dict["occ_scf"],),step = 2e-3, method = "Adam",maxiter = 110, verbose = True)# ,method = "Adam"
 
-    # min_bparams = xitorch.optimize.minimize(fcn,  func_dict["bparams"], (func_dict["bpacker"],
-    #                                                                     func_dict["bparams_ref"],
-    #                                                                     func_dict["bpacker_ref"],
-    #                                                                     func_dict["atomstruc_dqc"],
-    #                                                                     func_dict["atomstruc"],
-    #                                                                     func_dict["coeffM"],
-    #                                                                     func_dict["occ_scf"],),step = 2e-3, maxiter = 110, verbose = True)# ,method = "Adam"
-    #
-    # func_dict["bparams"] = min_bparams
-    # fcn(**func_dict)
 
     # def _min_fwd_fcn(y, *params):
     #     pfunc = get_pure_function(fcn)
