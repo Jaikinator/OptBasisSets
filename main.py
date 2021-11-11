@@ -28,7 +28,7 @@ def cuda_device_checker(memory  = False):
             print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
             print('Cached:   ', round(torch.cuda.memory_reserved(0) / 1024 ** 3, 1), 'GB')
 
-#cuda_device_checker()
+cuda_device_checker()
 
 ########################################################################################################################
 # configure torch tensor
@@ -93,12 +93,6 @@ class dft_system:
                                 .replace(" , " , ";")
                                 .replace(",","")
                                 .replace("  ", " "))
-
-    def get_atomstruc_dqc(self):
-        return self.atomstruc_dqc
-
-    def get_basis(self):
-        return self.lbasis
 
     def _loadbasis_dqc(self,**kwargs):
         """
@@ -170,6 +164,14 @@ class dft_system:
             atombases)  # creates an wrapper object to pass informations on lower functions
 
         return intor.overlap(wrap)
+
+    @property
+    def get_atomstruc_dqc(self):
+        return self.atomstruc_dqc
+
+    @property
+    def get_basis(self):
+        return self.lbasis
 
     @property
     def get_ovlp_dqc(self):
@@ -568,10 +570,10 @@ def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Ten
     :param num_gauss: array with length of the basis sets
     :return: Projection Matrix
     """
+
     S_12 = _cross_selcet(colap, num_gauss, "S_12")
     S_21 = _cross_selcet(colap, num_gauss, "S_21")
     S_22 = _cross_selcet(colap, num_gauss, "S_22")
-
     s21_c = torch.matmul(S_12, coeff)
     s22_s21c = torch.matmul(torch.inverse(S_22), s21_c)
     s12_s22s21c = torch.matmul(S_21, s22_s21c)
@@ -604,6 +606,10 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     # print(basis)
     ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
 
+    # for bs in ref_basis:
+    #     for f in range(len(ref_basis[bs])):
+    #         ref_basis[bs][f] = wfnormalize_(ref_basis[bs][f])
+
     num_gauss = _num_gauss(basis, ref_basis)
 
     basis_cross = blister(atomstruc,basis,ref_basis)
@@ -619,22 +625,6 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     for i in range(len(occ_scf)):
         _projection[:,i] = _projt[:,i] * occ_scf[i]
 
-    # atomzs, atompos = parse_moldesc(atomstruc_dqc)
-    # atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis_cross[i], pos=atompos[i]) for i in range(len(basis))]
-    # wrap2 = dqc.hamilton.intor.LibcintWrapper(
-    # atombases)  # creates an wrapper object to pass informations on lower functions
-    # ovlp = intor.overlap(wrap2)
-    # # print(ovlp)
-    #
-    # atomzs, atompos = parse_moldesc(atomstruc_dqc)
-    # atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis_cross[i+len(basis)], pos=atompos[i]) for i in range(len(basis))]
-    # wrap = dqc.hamilton.intor.LibcintWrapper(
-    #     atombases)  # creates an wrapper object to pass informations on lower functions
-    # ref_ovlp = intor.overlap(wrap)
-    # # print(colap,"\n", ovlp)
-
-
-    # change normalized state from true to False to get normalization in the next step
     return -torch.trace(_projection)/torch.sum(occ_scf)
 
 if __name__ == "__main__":
@@ -643,7 +633,8 @@ if __name__ == "__main__":
     # configure atomic system:
     ####################################################################################################################
 
-    atomstruc = [['H', [1.0, 0.0, 0.0]]]
+    atomstruc = [['H', [1.0, 0.0, 0.0]],
+                 ['H', [-1.0, 0.0,0.0]]]
 
     ####################################################################################################################
     # configure basis to optimize:
@@ -702,9 +693,11 @@ if __name__ == "__main__":
                                                                         func_dict["atomstruc_dqc"],
                                                                         func_dict["atomstruc"],
                                                                         func_dict["coeffM"],
-                                                                        func_dict["occ_scf"],),step = 2e-3, method = "Adam",maxiter = 110, verbose = True)# ,method = "Adam"
+                                                                        func_dict["occ_scf"],),step = 2e-3, method = "Adam",maxiter = 1000000, verbose = True)# ,method = "Adam"
 
-
+    print(f"{basis}: \t", func_dict["bparams"],"len: ",len(func_dict["bparams"]))
+    print(f"{basis_ref}:\t", func_dict["bparams_ref"],"len: ",len(func_dict["bparams_ref"]))
+    print("Opt params:\t", min_bparams,"len: ",len(min_bparams) )
     # def _min_fwd_fcn(y, *params):
     #     pfunc = get_pure_function(fcn)
     #     with torch.enable_grad():
