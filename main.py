@@ -468,7 +468,6 @@ def wfnormalize_(CGTOB):
     coeffs = CGTOB.coeffs
 
     # normalize to have individual gaussian integral to be 1 (if coeff is 1)
-
     if not CGTOB.normalized:
         coeffs = coeffs / torch.sqrt(gaussian_int(2 * CGTOB.angmom + 2, 2 * CGTOB.alphas))
     # normalize the coefficients in the basis (because some basis such as
@@ -611,10 +610,14 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
     colap = _crossoverlap(atomstruc_dqc, basis_cross)
     # maximize overlap
-    print(colap)
-    _projection = projection(coeffM,colap,num_gauss)
-    # print(_projection, occ_scf[occ_scf >0])
-    _projection = _projection * occ_scf[occ_scf > 0]
+
+    _projt = projection(coeffM,colap,num_gauss)
+    occ_scf = occ_scf[occ_scf > 0]
+
+    _projection = torch.zeros((_projt.shape[0], occ_scf.shape[0]), dtype = torch.float64)
+
+    for i in range(len(occ_scf)):
+        _projection[:,i] = _projt[:,i] * occ_scf[i]
 
     # atomzs, atompos = parse_moldesc(atomstruc_dqc)
     # atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis_cross[i], pos=atompos[i]) for i in range(len(basis))]
