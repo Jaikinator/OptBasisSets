@@ -571,9 +571,9 @@ def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Ten
     :return: Projection Matrix
     """
 
-    S_12 = _cross_selcet(colap, num_gauss, "S_12")
-    S_21 = _cross_selcet(colap, num_gauss, "S_21")
-    S_22 = _cross_selcet(colap, num_gauss, "S_22")
+    S_12 = _cross_selcet(colap, num_gauss, "S_21")
+    S_21 = _cross_selcet(colap, num_gauss, "S_12")
+    S_22 = _cross_selcet(colap, num_gauss, "S_11")
     s21_c = torch.matmul(S_12, coeff)
     s22_s21c = torch.matmul(torch.inverse(S_22), s21_c)
     s12_s22s21c = torch.matmul(S_21, s22_s21c)
@@ -599,6 +599,7 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     """
 
     basis = bpacker.construct_from_tensor(bparams) #create a CGTOBasis Object (set informations about gradient, normalization etc)
+
     # print(basis)
     # for bs in basis:
     #     for f in range(len(basis[bs])):
@@ -633,13 +634,13 @@ if __name__ == "__main__":
     # configure atomic system:
     ####################################################################################################################
 
-    atomstruc = [['H', [1.0, 0.0, 0.0]]]
+    atomstruc = [['Li', [1.0, 0.0, 0.0]]]
 
     ####################################################################################################################
     # configure basis to optimize:
     ####################################################################################################################
 
-    basis = "3-21G"
+    basis = "STO-3G"
     system = dft_system(basis, atomstruc)
     ####################################################################################################################
     # configure reference basis:
@@ -686,17 +687,21 @@ if __name__ == "__main__":
     # func_dict["bparams"] = torch.tensor([5.4472, 0.8245, 0.1832], dtype=torch.float64,requires_grad=True)
     # print(system.lbasis)
     func_dict = system.fcn_dict(system_ref)
+
+    func_dict["coeffM"] = system_ref._coeff_mat_scf()
+
+    fcn(**func_dict)
     min_bparams = xitorch.optimize.minimize(fcn,  func_dict["bparams"], (func_dict["bpacker"],
                                                                         func_dict["bparams_ref"],
                                                                         func_dict["bpacker_ref"],
                                                                         func_dict["atomstruc_dqc"],
                                                                         func_dict["atomstruc"],
                                                                         func_dict["coeffM"],
-                                                                        func_dict["occ_scf"],),step = 2e-3, method = "Adam",maxiter = 1000000, verbose = True)# ,method = "Adam"
+                                                                        func_dict["occ_scf"],),step = 2e-6, method = "gd",maxiter = 100, verbose = True)# ,method = "Adam"
 
     print(f"{basis}: \t", func_dict["bparams"],"len: ",len(func_dict["bparams"]))
     print(f"{basis_ref}:\t", func_dict["bparams_ref"],"len: ",len(func_dict["bparams_ref"]))
-    print("Opt params:\t", min_bparams,"len: ",len(min_bparams) )
+    print("Opt params:\t", min_bparams,"len: ",len(min_bparams))
     # def _min_fwd_fcn(y, *params):
     #     pfunc = get_pure_function(fcn)
     #     with torch.enable_grad():
