@@ -214,8 +214,6 @@ class dft_system:
             bdict[str(self.element_dict[self.elements[i]])] = gto.basis.parse(file)
         return bdict
 
-
-
     def _create_scf_Mol(self):
         """
         be aware here just basis as a string works
@@ -426,7 +424,7 @@ class dft_system:
                 "bpacker_ref": bpacker_ref,
                 "atomstruc_dqc" : self.atomstruc_dqc,
                 "atomstruc" : self.atomstruc,
-                "coeffM" : self._coeff_mat_scf(),
+                "coeffM" : ref_system.get_coeff_scf,
                 "occ_scf" : self._get_occ()}
 
 
@@ -448,40 +446,40 @@ def blister(atomstruc : list, basis : dict, refbasis :dict):
     return b_arr + bref_arr
 
 
-def wfnormalize_(CGTOB):
-    """
-    copy of ~/dqc/utils/datastruct.py wfnormalize_ of CGTBasis Class
-    :param CGTOBasis: Class Object
-    :return: normalized basis set coeff.
-    """
-    # wavefunction normalization
-    # the normalization is obtained from CINTgto_norm from
-    # libcint/src/misc.c, or
-    # https://github.com/sunqm/libcint/blob/b8594f1d27c3dad9034984a2a5befb9d607d4932/src/misc.c#L80
-
-    # Please note that the square of normalized wavefunctions do not integrate
-    # to 1, but e.g. for s: 4*pi, p: (4*pi/3)
-
-    # if the basis has been normalized before, then do nothing
-    #
-    # if self.normalized:
-    #     return self
-
-    coeffs = CGTOB.coeffs
-
-    # normalize to have individual gaussian integral to be 1 (if coeff is 1)
-    if not CGTOB.normalized:
-        coeffs = coeffs / torch.sqrt(gaussian_int(2 * CGTOB.angmom + 2, 2 * CGTOB.alphas))
-    # normalize the coefficients in the basis (because some basis such as
-    # def2-svp-jkfit is not normalized to have 1 in overlap)
-    ee = CGTOB.alphas.unsqueeze(-1) + CGTOB.alphas.unsqueeze(-2)  # (ngauss, ngauss)
-    ee = gaussian_int(2 * CGTOB.angmom + 2, ee)
-    s1 = 1 / torch.sqrt(torch.einsum("a,ab,b", coeffs, ee, coeffs))
-    coeffs = coeffs * s1
-
-    CGTOB.coeffs = coeffs
-    CGTOB.normalized = True
-    return CGTOB
+# def wfnormalize_(CGTOB):
+#     """
+#     copy of ~/dqc/utils/datastruct.py wfnormalize_ of CGTBasis Class
+#     :param CGTOBasis: Class Object
+#     :return: normalized basis set coeff.
+#     """
+#     # wavefunction normalization
+#     # the normalization is obtained from CINTgto_norm from
+#     # libcint/src/misc.c, or
+#     # https://github.com/sunqm/libcint/blob/b8594f1d27c3dad9034984a2a5befb9d607d4932/src/misc.c#L80
+#
+#     # Please note that the square of normalized wavefunctions do not integrate
+#     # to 1, but e.g. for s: 4*pi, p: (4*pi/3)
+#
+#     # if the basis has been normalized before, then do nothing
+#     #
+#     # if self.normalized:
+#     #     return self
+#
+#     coeffs = CGTOB.coeffs
+#
+#     # normalize to have individual gaussian integral to be 1 (if coeff is 1)
+#     if not CGTOB.normalized:
+#         coeffs = coeffs / torch.sqrt(gaussian_int(2 * CGTOB.angmom + 2, 2 * CGTOB.alphas))
+#     # normalize the coefficients in the basis (because some basis such as
+#     # def2-svp-jkfit is not normalized to have 1 in overlap)
+#     ee = CGTOB.alphas.unsqueeze(-1) + CGTOB.alphas.unsqueeze(-2)  # (ngauss, ngauss)
+#     ee = gaussian_int(2 * CGTOB.angmom + 2, ee)
+#     s1 = 1 / torch.sqrt(torch.einsum("a,ab,b", coeffs, ee, coeffs))
+#     coeffs = coeffs * s1
+#
+#     CGTOB.coeffs = coeffs
+#     CGTOB.normalized = True
+#     return CGTOB
 
 
 def _num_gauss(basis : list, restbasis : list):
@@ -512,7 +510,8 @@ def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
     """
     select the cross overlap matrix part.
     The corssoverlap is defined by the overlap between to basis sets.
-    For example is b1 the array of the first basis set and b2 the array of the second basisset
+    For example is b1 the array of the first basis set which will be optimized and
+    b2 the array of the second basis set which is the reference basis
     Then is the crossoveralp S:
         S  = [b1*b1 , b1*b2] = [S_11 , S_12]
              [b2*b1 , b2*b2]   [S_21 , S_22]
@@ -559,25 +558,27 @@ def _crossoverlap(atomstruc : str, basis : list):
     # creats an list with AtomCGTOBasis object for each atom (including  all previous informations in one array element)
     wrap = dqc.hamilton.intor.LibcintWrapper(
         atombases)  # creates an wrapper object to pass informations on lower functions
+
     return intor.overlap(wrap)
 
 def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Tensor):
     """
     Calculate the Projection from the old to the new Basis:
-         P = C^T S_12 S⁻¹_22 S_21 C
-    :param coeff: coefficient matrix calc by pyscf (C Matrix in eq.)
+         P = C^T S_12 S⁻¹_11 S_21 C
+    :param coeff: coefficient matrix of the bigger reference basis calculated by pyscf (C Matrix in eq.)
     :param colap: crossoverlap Matrix (S and his parts)
     :param num_gauss: array with length of the basis sets
     :return: Projection Matrix
     """
 
-    S_12 = _cross_selcet(colap, num_gauss, "S_21")
-    S_21 = _cross_selcet(colap, num_gauss, "S_12")
-    S_22 = _cross_selcet(colap, num_gauss, "S_11")
-    s21_c = torch.matmul(S_12, coeff)
-    s22_s21c = torch.matmul(torch.inverse(S_22), s21_c)
-    s12_s22s21c = torch.matmul(S_21, s22_s21c)
-    P = torch.matmul(coeff.T, s12_s22s21c)
+    S_12 = _cross_selcet(colap, num_gauss, "S_12")
+    S_21 = _cross_selcet(colap, num_gauss, "S_21")
+    S_11 = _cross_selcet(colap, num_gauss, "S_11")
+    print(S_12.shape)
+    s21_c = torch.matmul(S_21, coeff)
+    s11_s21c = torch.matmul(torch.inverse(S_11), s21_c)
+    s21_s11s12c = torch.matmul(S_12, s11_s21c)
+    P = torch.matmul(coeff.T, s21_s11s12c)
     return P
 
 ########################################################################################################################
@@ -600,16 +601,7 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
     basis = bpacker.construct_from_tensor(bparams) #create a CGTOBasis Object (set informations about gradient, normalization etc)
 
-    # print(basis)
-    # for bs in basis:
-    #     for f in range(len(basis[bs])):
-    #         basis[bs][f] = wfnormalize_(basis[bs][f])
-    # print(basis)
     ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
-
-    # for bs in ref_basis:
-    #     for f in range(len(ref_basis[bs])):
-    #         ref_basis[bs][f] = wfnormalize_(ref_basis[bs][f])
 
     num_gauss = _num_gauss(basis, ref_basis)
 
@@ -634,20 +626,23 @@ if __name__ == "__main__":
     # configure atomic system:
     ####################################################################################################################
 
-    atomstruc = [['Li', [1.0, 0.0, 0.0]]]
+    atomstruc = [['H', [1.0, 0.0, 0.0]],
+                 ['H', [-1.0, 0.0, 0.0]]]
 
     ####################################################################################################################
     # configure basis to optimize:
     ####################################################################################################################
 
-    basis = "STO-3G"
+    basis = "3-21G"
     system = dft_system(basis, atomstruc)
+
     ####################################################################################################################
     # configure reference basis:
     ####################################################################################################################
     basis_ref = "cc-pvdz"
     system_ref = dft_system(basis_ref, atomstruc)
 
+    print(system_ref.get_coeff_scf.shape)
     ####################################################################################################################
     # create input dictionary for fcn()
     # proj_scf = scf.addons.project_mo_nr2nr(system.get_mol_scf, np.array(system.get_coeff_scf), system_ref.get_mol_scf)
@@ -688,7 +683,7 @@ if __name__ == "__main__":
     # print(system.lbasis)
     func_dict = system.fcn_dict(system_ref)
 
-    func_dict["coeffM"] = system_ref._coeff_mat_scf()
+    # func_dict["coeffM"] = system_ref._coeff_mat_scf()
 
     fcn(**func_dict)
     min_bparams = xitorch.optimize.minimize(fcn,  func_dict["bparams"], (func_dict["bpacker"],
@@ -717,3 +712,8 @@ Basis Names:
 
 """
 
+"""
+To configure verbose options on which step something should be printet look at 
+~/xitorch/_impls/optimize/minimizer.py line 183
+
+"""
