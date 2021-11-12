@@ -111,7 +111,7 @@ class dft_system:
             for i in range(len(self.elements)):
                 bdict[self.element_dict[self.elements[i]]] = dqc.loadbasis(f"{self.elements[i]}:{self.basis}", **kwargs)
             return bdict
-        elif type(self.basis) is  dict:
+        elif type(self.basis) is dict:
             bdict = {}
             for i in range(len(self.basis)):
                 bdict[self.element_dict[self.elements[i]]] = dqc.loadbasis(f"{self.elements[i]}:{self.basis[self.element_dict[self.elements[i]]]}", **kwargs)
@@ -205,7 +205,7 @@ class dft_system:
                 print(f"No basis {self.basis} found for {self.element_dict[self.elements[i]]}."
                       f" Try to get it from https://www.basissetexchange.org/")
                 basis = bse.get_basis(self.basis, elements=[self.element_dict[self.elements[i]]], fmt="nwchem")
-                fname = f"{folderpath}/{basisname}.{self.elements[0]}.nw"
+                fname = f"{folderpath}/{basisname}.{self.elements[i]}.nw"
                 with open(fname, "w") as f:
                     f.write(basis)
                 print(f"Downloaded to {os.path.abspath(fname)}")
@@ -269,18 +269,22 @@ class dft_system:
     @property
     def get_basis_scf(self):
         return self._get_molbasis_fparser_scf()
+
     @property
     def get_coeff_scf(self):
         return self._coeff_mat_scf()
+
     @property
     def get_occ_coeff_scf(self):
         """
          coefficient- matrix of just the occupied orbitals
         """
         return self._coeff_mat_scf[self._coeff_mat_scf>0]
+
     @property
     def get_mol_scf(self):
         return self._create_scf_Mol()
+
     @property
     def get_occ_scf(self):
         return self._get_occ()
@@ -482,7 +486,7 @@ def blister(atomstruc : list, basis : dict, refbasis :dict):
 #     return CGTOB
 
 
-def _num_gauss(basis : list, restbasis : list):
+def _num_gauss(basis : list, restbasis : list, lenatomstruc = False):
     """
     calc the number of primitive Gaussian's in a basis set so that the elements of an overlap matrix can be defined.
     :param basis: list
@@ -493,18 +497,33 @@ def _num_gauss(basis : list, restbasis : list):
         number of elements of each basis set
 
     """
-    n_basis =  0
-    n_restbasis = 0
+    if lenatomstruc == False:
+        n_basis =  0
+        n_restbasis = 0
 
-    for b in basis:
-        for el in basis[b]:
-            n_basis += 2 * el.angmom + 1
+        for b in basis:
+            for el in basis[b]:
+                n_basis += 2 * el.angmom + 1
 
-    for b in restbasis:
-        for el in restbasis[b]:
-            n_restbasis += 2 * el.angmom + 1
+        for b in restbasis:
+            for el in restbasis[b]:
+                n_restbasis += 2 * el.angmom + 1
+        gaussarr = [n_basis, n_restbasis]
+    else:
+        n_basis = 0
+        n_restbasis = 0
+        print(basis)
+        for i in range(lenatomstruc):
+            for b in basis:
+                for el in basis[b]:
+                    n_basis += 2 * el.angmom + 1
+            print(n_basis)
+            for b in restbasis:
+                for el in restbasis[b]:
+                    n_restbasis += 2 * el.angmom + 1
+        gaussarr = [n_basis, n_restbasis]
+    return gaussarr
 
-    return [n_basis, n_restbasis]
 
 def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
     """
@@ -527,7 +546,6 @@ def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
     :return: torch.tensor
     returns the cross overlap matrix between the new and the old basis func
     """
-
     if direction == "S_11" :
         return crossmat[0:num_gauss[0],0:num_gauss[0]]
     elif direction == "S_12":
@@ -574,7 +592,7 @@ def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Ten
     S_12 = _cross_selcet(colap, num_gauss, "S_12")
     S_21 = _cross_selcet(colap, num_gauss, "S_21")
     S_11 = _cross_selcet(colap, num_gauss, "S_11")
-    print(S_12.shape)
+
     s21_c = torch.matmul(S_21, coeff)
     s11_s21c = torch.matmul(torch.inverse(S_11), s21_c)
     s21_s11s12c = torch.matmul(S_12, s11_s21c)
@@ -602,9 +620,10 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     basis = bpacker.construct_from_tensor(bparams) #create a CGTOBasis Object (set informations about gradient, normalization etc)
 
     ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
-
-    num_gauss = _num_gauss(basis, ref_basis)
-
+    if len(atomstruc) !=  len(basis):
+        num_gauss = _num_gauss(basis, ref_basis, len(atomstruc))
+    else:
+        num_gauss = _num_gauss(basis, ref_basis)
     basis_cross = blister(atomstruc,basis,ref_basis)
 
     colap = _crossoverlap(atomstruc_dqc, basis_cross)
@@ -626,8 +645,9 @@ if __name__ == "__main__":
     # configure atomic system:
     ####################################################################################################################
 
-    atomstruc = [['H', [1.0, 0.0, 0.0]],
-                 ['H', [-1.0, 0.0, 0.0]]]
+    atomstruc = [['H', [0.5, 0.0, 0.0]],
+                 ['O', [-0.5, 0.0, 0.0 ]],
+                 ['H', [0.0, 1.0, 0.0]]]
 
     ####################################################################################################################
     # configure basis to optimize:
@@ -635,14 +655,12 @@ if __name__ == "__main__":
 
     basis = "3-21G"
     system = dft_system(basis, atomstruc)
-
     ####################################################################################################################
     # configure reference basis:
     ####################################################################################################################
     basis_ref = "cc-pvdz"
     system_ref = dft_system(basis_ref, atomstruc)
 
-    print(system_ref.get_coeff_scf.shape)
     ####################################################################################################################
 
     func_dict = system.fcn_dict(system_ref)
@@ -653,7 +671,7 @@ if __name__ == "__main__":
                                                                         func_dict["atomstruc_dqc"],
                                                                         func_dict["atomstruc"],
                                                                         func_dict["coeffM"],
-                                                                        func_dict["occ_scf"],),step = 2e-6, method = "gd",maxiter = 100, verbose = True)# ,method = "Adam"
+                                                                        func_dict["occ_scf"],),step = 2e-6, method = "gd",maxiter = 1000, verbose = True)# ,method = "Adam"
 
     print(f"{basis}: \t", func_dict["bparams"],"len: ",len(func_dict["bparams"]))
     print(f"{basis_ref}:\t", func_dict["bparams_ref"],"len: ",len(func_dict["bparams_ref"]))
