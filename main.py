@@ -644,48 +644,9 @@ if __name__ == "__main__":
 
     print(system_ref.get_coeff_scf.shape)
     ####################################################################################################################
-    # create input dictionary for fcn()
-    # proj_scf = scf.addons.project_mo_nr2nr(system.get_mol_scf, np.array(system.get_coeff_scf), system_ref.get_mol_scf)
-    # cross_ovlp_scf = gto.mole.intor_cross('int1e_ovlp', system.get_mol_scf,system_ref.get_mol_scf)
 
-    # print("ovlp scf 3-31G\n", system.get_ovlp_scf)
-    # # print("ovlp scf cc-pvdz\n", system_ref.get_ovlp_scf)
-    # # print("cross_ovlp_scf\n", cross_ovlp_scf)
-    # print("proj_scf\n", proj_scf)
-    #
-    # print("ovlp dqc 3-21G: \n", system.get_ovlp_dqc)
-    # print("ovlp_ref cc-pvdz:\n", system_ref.get_ovlp_dqc)
-    # func_dict = system.fcn_dict(system_ref)
-    # fcn(**func_dict)
-    #system._get_molbasis_fparser_scf()
-    # print(system._reconf_scf_arr(desc="ovlp"))
-
-    # fcn(**func_dict)
-
-# basis = [dqc.loadbasis("1:cc-pvdz")]
-# for i in range(5):
-#     change_norm_state(basis)
-#     m = dqc.Mol("H 1 0 0", basis=basis)
-#     atombases = [
-#        AtomCGTOBasis(atomz=m.atomzs[i], bases=basis[i], pos=m.atompos[i]) \
-#         for i in range(len(basis))]
-#     print(atombases)
-#     wrap = dqc.hamilton.intor.LibcintWrapper(atombases)
-#     dqc_o = intor.overlap(wrap)
-#
-
-
-
-#######################
-    #
-    # print(func_dict["bparams"])
-    # func_dict["bparams"] = torch.tensor([5.4472, 0.8245, 0.1832], dtype=torch.float64,requires_grad=True)
-    # print(system.lbasis)
     func_dict = system.fcn_dict(system_ref)
 
-    # func_dict["coeffM"] = system_ref._coeff_mat_scf()
-
-    fcn(**func_dict)
     min_bparams = xitorch.optimize.minimize(fcn,  func_dict["bparams"], (func_dict["bpacker"],
                                                                         func_dict["bparams_ref"],
                                                                         func_dict["bpacker_ref"],
@@ -697,13 +658,18 @@ if __name__ == "__main__":
     print(f"{basis}: \t", func_dict["bparams"],"len: ",len(func_dict["bparams"]))
     print(f"{basis_ref}:\t", func_dict["bparams_ref"],"len: ",len(func_dict["bparams_ref"]))
     print("Opt params:\t", min_bparams,"len: ",len(min_bparams))
-    # def _min_fwd_fcn(y, *params):
-    #     pfunc = get_pure_function(fcn)
-    #     with torch.enable_grad():
-    #         y1 = y.clone().requiresgrad()
-    #         z = pfunc(y1, *params)
-    #     grady, = torch.autograd.grad(z, (y1,), retain_graph=True,
-    #                                  create_graph=torch.is_grad_enabled())
+
+
+
+"""    
+def _min_fwd_fcn(y, *params):
+         pfunc = get_pure_function(fcn)
+         with torch.enable_grad():
+             y1 = y.clone().requiresgrad()
+             z = pfunc(y1, *params)
+         grady, = torch.autograd.grad(z, (y1,), retain_graph=True,
+                                      create_graph=torch.is_grad_enabled())
+"""
 
 """
 Basis Names:
