@@ -486,7 +486,7 @@ def blister(atomstruc : list, basis : dict, refbasis :dict):
 #     return CGTOB
 
 
-def _num_gauss(basis : list, restbasis : list, lenatomstruc = False):
+def _num_gauss(basis : list, restbasis : list, atomstruc = False):
     """
     calc the number of primitive Gaussian's in a basis set so that the elements of an overlap matrix can be defined.
     :param basis: list
@@ -497,32 +497,18 @@ def _num_gauss(basis : list, restbasis : list, lenatomstruc = False):
         number of elements of each basis set
 
     """
-    if lenatomstruc == False:
-        n_basis =  0
-        n_restbasis = 0
+    n_basis =  0
+    n_restbasis = 0
 
-        for b in basis:
-            for el in basis[b]:
-                n_basis += 2 * el.angmom + 1
 
-        for b in restbasis:
-            for el in restbasis[b]:
-                n_restbasis += 2 * el.angmom + 1
-        gaussarr = [n_basis, n_restbasis]
-    else:
-        n_basis = 0
-        n_restbasis = 0
-        print(basis)
-        for i in range(lenatomstruc):
-            for b in basis:
-                for el in basis[b]:
-                    n_basis += 2 * el.angmom + 1
-            print(n_basis)
-            for b in restbasis:
-                for el in restbasis[b]:
-                    n_restbasis += 2 * el.angmom + 1
-        gaussarr = [n_basis, n_restbasis]
-    return gaussarr
+    for i in range(len(atomstruc)):
+        for el in basis[atomstruc[i][0]]:
+            n_basis += 2 * el.angmom + 1
+
+        for el in restbasis[atomstruc[i][0]]:
+            n_restbasis += 2 * el.angmom + 1
+    return [n_basis, n_restbasis]
+
 
 
 def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
@@ -546,6 +532,7 @@ def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
     :return: torch.tensor
     returns the cross overlap matrix between the new and the old basis func
     """
+
     if direction == "S_11" :
         return crossmat[0:num_gauss[0],0:num_gauss[0]]
     elif direction == "S_12":
@@ -621,7 +608,7 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
     ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
     if len(atomstruc) !=  len(basis):
-        num_gauss = _num_gauss(basis, ref_basis, len(atomstruc))
+        num_gauss = _num_gauss(basis, ref_basis, atomstruc)
     else:
         num_gauss = _num_gauss(basis, ref_basis)
     basis_cross = blister(atomstruc,basis,ref_basis)
