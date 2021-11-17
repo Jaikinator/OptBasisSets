@@ -10,6 +10,7 @@ from dqc.api.parser import parse_moldesc
 import warnings #for warnings
 import os
 import basis_set_exchange as bse # basist set exchange libary
+import numpy as np
 
 #get atom pos:
 from ase.build import molecule
@@ -31,7 +32,7 @@ def cuda_device_checker(memory  = False):
             print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
             print('Cached:   ', round(torch.cuda.memory_reserved(0) / 1024 ** 3, 1), 'GB')
 
-# cuda_device_checker()
+cuda_device_checker()
 
 ########################################################################################################################
 # configure torch tensor
@@ -161,7 +162,7 @@ class dft_system:
 
         elem = [self.atomstruc[i][0] for i in range(len(self.atomstruc))]
         basis = [self.lbasis[elem[i]] for i in range(len(elem))]
-        atomzs, atompos = parse_moldesc(system.get_atomstruc_dqc())
+        atomzs, atompos = parse_moldesc(self.get_atomstruc_dqc())
         atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
         wrap = dqc.hamilton.intor.LibcintWrapper(
             atombases)  # creates an wrapper object to pass informations on lower functions
@@ -303,7 +304,7 @@ class dft_system:
         """
         create array with all elements in the system
         """
-        elements_arr  = [self.atomstruc[i][0] for i in range(len(atomstruc))]
+        elements_arr  = [self.atomstruc[i][0] for i in range(len(self.atomstruc))]
         for i in range(len(elements_arr)):
             if type(elements_arr[i]) is str:
                 elements_arr[i] = self.element_dict[elements_arr[i]]
@@ -432,20 +433,43 @@ class dft_system:
                 "atomstruc_dqc" : self.atomstruc_dqc,
                 "atomstruc" : self.atomstruc,
                 "coeffM" : ref_system.get_coeff_scf,
-                "occ_scf" : self._get_occ()}
-
-
+                "occ_scf" : ref_system._get_occ()}
 
 class system_ase(dft_system):
-    def __init__(self, basis :str, atomstruc : str, scf = True, requires_grad = False, rearrange = True ):
-            super().__init__(basis,atomstruc, scf, requires_grad , rearrange)
 
-def system_fusion(atomstruc,basis1,basis2, **kwargs):
+    def __init__(self, basis :str, atomstruc : str, scf = True, requires_grad = False, rearrange = True ):
+
+        self.atomstruc = self.create_atomstruc_from_ase(atomstruc)
+
+        super().__init__(basis,self.atomstruc,  scf, requires_grad, rearrange)
+
+    def create_atomstruc_from_ase(self,atomstruc):
+        """
+        creates atomstruc from ase database.
+        :param atomstruc: molecule string
+        :return: array like [element, [x,y,z], ...]
+        """
+        chem_symb = molecule(atomstruc).get_chemical_symbols()
+        atompos =  molecule(atomstruc).get_positions()
+        arr = []
+        for i in range(len(chem_symb)):
+            arr.append([chem_symb[i], list(atompos[i])])
+        return arr
+
+def system_init(atomstruc, basis1, basis2, **kwargs):
     """
     placeholder to get one fct to define a hole system
     """
-    pass
 
+    if type(atomstruc) is list:
+        system = dft_system(basis1, atomstruc, scf = False, **kwargs)
+        system_ref = dft_system(basis2, atomstruc,**kwargs)
+    elif type(atomstruc) is str:
+        system = system_ase(basis1, atomstruc, scf = False,**kwargs)
+        system_ref = system_ase(basis2, atomstruc,**kwargs)
+    else:
+        print("pls report")
+    return system.fcn_dict(system_ref)
 ########################################################################################################################
 # now do the actual calculations
 ########################################################################################################################
@@ -606,29 +630,33 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
 if __name__ == "__main__":
 
+
     ####################################################################################################################
     # configure atomic system:
     ####################################################################################################################
 
-    atomstruc = [['H', [0.5, 0.0, 0.0]],
-                 ['H', [0.0, 0.5, 0.0]]]
+    # atomstruc = [['H', [0.5, 0.0, 0.0]],
+    #              ['O', [-0.5, 0.0, 0.0 ]],
+    #              ['H', [0.0, 1.0, 0.0]]]
+
+    atomstruc2 = "isobutene"
 
     ####################################################################################################################
     # configure basis to optimize:
     ####################################################################################################################
 
-    basis = "3-21G"
-    system = dft_system(basis, atomstruc)
+    basis = "STO-3G"
+    #system = dft_system(basis, atomstruc)
 
     ####################################################################################################################
     # configure reference basis:
     ####################################################################################################################
     basis_ref = "cc-pvdz"
-    system_ref = dft_system(basis_ref, atomstruc)
+    #system_ref = dft_system(basis_ref, atomstruc)
 
     ####################################################################################################################
 
-    func_dict = system.fcn_dict(system_ref)
+    func_dict =system_init(atomstruc2,basis,basis_ref) #system.fcn_dict(system_ref)
 
     min_bparams = xitorch.optimize.minimize(fcn,  func_dict["bparams"], (func_dict["bpacker"],
                                                                         func_dict["bparams_ref"],
@@ -636,7 +664,7 @@ if __name__ == "__main__":
                                                                         func_dict["atomstruc_dqc"],
                                                                         func_dict["atomstruc"],
                                                                         func_dict["coeffM"],
-                                                                        func_dict["occ_scf"],),step = 2e-6, method = "Adam",maxiter = 100000, verbose = True)# ,method = "Adam"
+                                                                        func_dict["occ_scf"],),step = 2e-6,method = "Adam",maxiter = 1000000, verbose = True)# ,method = "Adam"
 
     print(f"{basis}: \t", func_dict["bparams"],"len: ",len(func_dict["bparams"]))
     print(f"{basis_ref}:\t", func_dict["bparams_ref"],"len: ",len(func_dict["bparams_ref"]))
@@ -665,4 +693,19 @@ Basis Names:
 To configure verbose options on which step something should be printet look at 
 ~/xitorch/_impls/optimize/minimizer.py line 183
 
+"""
+"""
+['PH3', 'P2', 'CH3CHO', 'H2COH', 'CS', 'OCHCHO', 'C3H9C', 'CH3COF', 'CH3CH2OCH3', 'HCOOH', 'HCCl3', 'HOCl', 'H2', 'SH2',
+ 'C2H2', 'C4H4NH', 'CH3SCH3', 'SiH2_s3B1d', 'CH3SH', 'CH3CO', 'CO', 'ClF3', 'SiH4', 'C2H6CHOH', 'CH2NHCH2', 'isobutene',
+  'HCO', 'bicyclobutane', 'LiF', 'Si', 'C2H6', 'CN', 'ClNO', 'S', 'SiF4', 'H3CNH2', 'methylenecyclopropane', 'CH3CH2OH',
+   'F', 'NaCl', 'CH3Cl', 'CH3SiH3', 'AlF3', 'C2H3', 'ClF', 'PF3', 'PH2', 'CH3CN', 'cyclobutene', 'CH3ONO', 'SiH3',
+    'C3H6_D3h', 'CO2', 'NO', 'trans-butane', 'H2CCHCl', 'LiH', 'NH2', 'CH', 'CH2OCH2', 'C6H6', 'CH3CONH2',
+     'cyclobutane', 'H2CCHCN', 'butadiene', 'C', 'H2CO', 'CH3COOH', 'HCF3', 'CH3S', 'CS2', 'SiH2_s1A1d', 'C4H4S', 'N2H4'
+     , 'OH', 'CH3OCH3', 'C5H5N', 'H2O', 'HCl', 'CH2_s1A1d', 'CH3CH2SH', 'CH3NO2', 'Cl', 'Be', 'BCl3', 'C4H4O', 'Al',
+      'CH3O', 'CH3OH', 'C3H7Cl', 'isobutane', 'Na', 'CCl4', 'CH3CH2O', 'H2CCHF', 'C3H7', 'CH3', 'O3', 'P', 'C2H4', 
+      'NCCN', 'S2', 'AlCl3', 'SiCl4', 'SiO', 'C3H4_D2d', 'H', 'COF2', '2-butyne', 'C2H5', 'BF3', 'N2O', 'F2O', 'SO2',
+       'H2CCl2', 'CF3CN', 'HCN', 'C2H6NH', 'OCS', 'B', 'ClO', 'C3H8', 'HF', 'O2', 'SO', 'NH', 'C2F4', 'NF3', 'CH2_s3B1d'
+       , 'CH3CH2Cl', 'CH3COCl', 'NH3', 'C3H9N', 'CF4', 'C3H6_Cs', 'Si2H6', 'HCOOCH3', 'O', 'CCH', 'N', 'Si2', 'C2H6SO', 
+       'C5H8', 'H2CF2', 'Li2', 'CH2SCH2', 'C2Cl4', 'C3H4_C3v', 'CH3COCH3', 'F2', 'CH4', 'SH', 'H2CCO', 'CH3CH2NH2', 'Li'
+       , 'N2', 'Cl2', 'H2O2', 'Na2', 'BeH', 'C3H4_C2v', 'NO2']
 """
