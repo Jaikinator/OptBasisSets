@@ -28,7 +28,7 @@ def cuda_device_checker(memory  = False):
             print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
             print('Cached:   ', round(torch.cuda.memory_reserved(0) / 1024 ** 3, 1), 'GB')
 
-cuda_device_checker()
+# cuda_device_checker()
 
 ########################################################################################################################
 # configure torch tensor
@@ -450,42 +450,6 @@ def blister(atomstruc : list, basis : dict, refbasis :dict):
     return b_arr + bref_arr
 
 
-# def wfnormalize_(CGTOB):
-#     """
-#     copy of ~/dqc/utils/datastruct.py wfnormalize_ of CGTBasis Class
-#     :param CGTOBasis: Class Object
-#     :return: normalized basis set coeff.
-#     """
-#     # wavefunction normalization
-#     # the normalization is obtained from CINTgto_norm from
-#     # libcint/src/misc.c, or
-#     # https://github.com/sunqm/libcint/blob/b8594f1d27c3dad9034984a2a5befb9d607d4932/src/misc.c#L80
-#
-#     # Please note that the square of normalized wavefunctions do not integrate
-#     # to 1, but e.g. for s: 4*pi, p: (4*pi/3)
-#
-#     # if the basis has been normalized before, then do nothing
-#     #
-#     # if self.normalized:
-#     #     return self
-#
-#     coeffs = CGTOB.coeffs
-#
-#     # normalize to have individual gaussian integral to be 1 (if coeff is 1)
-#     if not CGTOB.normalized:
-#         coeffs = coeffs / torch.sqrt(gaussian_int(2 * CGTOB.angmom + 2, 2 * CGTOB.alphas))
-#     # normalize the coefficients in the basis (because some basis such as
-#     # def2-svp-jkfit is not normalized to have 1 in overlap)
-#     ee = CGTOB.alphas.unsqueeze(-1) + CGTOB.alphas.unsqueeze(-2)  # (ngauss, ngauss)
-#     ee = gaussian_int(2 * CGTOB.angmom + 2, ee)
-#     s1 = 1 / torch.sqrt(torch.einsum("a,ab,b", coeffs, ee, coeffs))
-#     coeffs = coeffs * s1
-#
-#     CGTOB.coeffs = coeffs
-#     CGTOB.normalized = True
-#     return CGTOB
-
-
 def _num_gauss(basis : list, restbasis : list, atomstruc = False):
     """
     calc the number of primitive Gaussian's in a basis set so that the elements of an overlap matrix can be defined.
@@ -633,8 +597,7 @@ if __name__ == "__main__":
     ####################################################################################################################
 
     atomstruc = [['H', [0.5, 0.0, 0.0]],
-                 ['O', [-0.5, 0.0, 0.0 ]],
-                 ['H', [0.0, 1.0, 0.0]]]
+                 ['H', [0.0, 0.5, 0.0]]]
 
     ####################################################################################################################
     # configure basis to optimize:
@@ -658,7 +621,7 @@ if __name__ == "__main__":
                                                                         func_dict["atomstruc_dqc"],
                                                                         func_dict["atomstruc"],
                                                                         func_dict["coeffM"],
-                                                                        func_dict["occ_scf"],),step = 2e-6, method = "gd",maxiter = 1000, verbose = True)# ,method = "Adam"
+                                                                        func_dict["occ_scf"],),step = 2e-6, method = "Adam",maxiter = 100000, verbose = True)# ,method = "Adam"
 
     print(f"{basis}: \t", func_dict["bparams"],"len: ",len(func_dict["bparams"]))
     print(f"{basis_ref}:\t", func_dict["bparams_ref"],"len: ",len(func_dict["bparams_ref"]))
