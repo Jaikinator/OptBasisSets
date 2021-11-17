@@ -10,7 +10,10 @@ from dqc.api.parser import parse_moldesc
 import warnings #for warnings
 import os
 import basis_set_exchange as bse # basist set exchange libary
-import numpy as np
+
+#get atom pos:
+from ase.build import molecule
+from ase.collections import g2
 
 import pymatgen.core.periodic_table as peri
 
@@ -432,6 +435,13 @@ class dft_system:
                 "occ_scf" : self._get_occ()}
 
 
+
+class system_ase(dft_system):
+    def __init__(self, basis :str, atomstruc : str, scf = True, requires_grad = False, rearrange = True ):
+            super().__init__(basis,atomstruc, scf, requires_grad , rearrange)
+
+
+
 ########################################################################################################################
 # now do the actual calculations
 ########################################################################################################################
@@ -605,6 +615,7 @@ if __name__ == "__main__":
 
     basis = "3-21G"
     system = dft_system(basis, atomstruc)
+
     ####################################################################################################################
     # configure reference basis:
     ####################################################################################################################
