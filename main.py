@@ -440,7 +440,11 @@ class system_ase(dft_system):
     def __init__(self, basis :str, atomstruc : str, scf = True, requires_grad = False, rearrange = True ):
             super().__init__(basis,atomstruc, scf, requires_grad , rearrange)
 
-
+def system_fusion(atomstruc,basis1,basis2, **kwargs):
+    """
+    placeholder to get one fct to define a hole system
+    """
+    pass
 
 ########################################################################################################################
 # now do the actual calculations
