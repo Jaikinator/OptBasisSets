@@ -459,29 +459,29 @@ class system_ase(dft_system):
             arr.append([chem_symb[i], list(atompos[i])])
         return arr
 
-    def _create_scf_Mol(self):
-        """
-        be aware here just basis as a string works
-        :return: mol object
-        """
-
-        """
-        basis path from 
-        ~/anaconda3/envs/OptimizeBasisFunc/lib/python3.8/site-packages/pyscf/gto/basis
-        """
-        mol = gto.Mole()
-        mol.atom = self.atomstruc
-        mol.unit = 'Bohr'  # in Angstrom
-        mol.verbose = 6
-        mol.output = 'scf.out'
-        mol.symmetry = False
-        mol.basis = self._get_molbasis_fparser_scf()
-        mol.build()
-        print(mol.nelec)
-        mol.charge = sum(molecule(self.atomstrucstr).get_initial_magnetic_moments())
-        mol.spin = sum(molecule(self.atomstrucstr).get_initial_charges())
-        print(mol.nelec)
-        return mol
+    # def _create_scf_Mol(self):
+    #     """
+    #     be aware here just basis as a string works
+    #     :return: mol object
+    #     """
+    #
+    #     """
+    #     basis path from
+    #     ~/anaconda3/envs/OptimizeBasisFunc/lib/python3.8/site-packages/pyscf/gto/basis
+    #     """
+    #     mol = gto.Mole()
+    #     mol.atom = self.atomstruc
+    #     mol.unit = 'Bohr'  # in Angstrom
+    #     mol.verbose = 6
+    #     mol.output = 'scf.out'
+    #     mol.symmetry = False
+    #     mol.basis = self._get_molbasis_fparser_scf()
+    #     mol.build()
+    #     # print(mol.nelec)
+    #     # mol.charge = sum(molecule(self.atomstrucstr).get_initial_magnetic_moments())
+    #     # mol.spin = sum(molecule(self.atomstrucstr).get_initial_charges())
+    #     # print(mol.nelec)
+    #     return mol
 
 def system_init(atomstruc, basis1, basis2, **kwargs):
     """
@@ -675,19 +675,19 @@ if __name__ == "__main__":
     #              ['O', [-0.5, 0.0, 0.0 ]],
     #              ['H', [0.0, 1.0, 0.0]]]
 
-    atomstruc2 = "H2O"
+    atomstruc2 = "CH4"
 
     ####################################################################################################################
     # configure basis to optimize:
     ####################################################################################################################
 
-    basis = "3-21G"
+    basis = "STO-3G"
     #system = dft_system(basis, atomstruc)
 
     ####################################################################################################################
     # configure reference basis:
     ####################################################################################################################
-    basis_ref = "cc-pvdz"
+    basis_ref = "cc-pvtz"
     #system_ref = dft_system(basis_ref, atomstruc)
 
     ####################################################################################################################
