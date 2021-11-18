@@ -18,6 +18,9 @@ from ase.collections import g2
 
 import pymatgen.core.periodic_table as peri
 
+#try paralaziation:
+from concurrent.futures import ThreadPoolExecutor
+
 ########################################################################################################################
 # check if GPU is used:
 # setting device on GPU if available, else CPU
@@ -129,7 +132,6 @@ class dft_system:
     def _rearrange_basis_dqc(self, **kwargs):
         basis = self._loadbasis_dqc(**kwargs)
         bout = {}
-
 
         # read highest angmom for each atom:
         max_angmom_arr = []
@@ -437,24 +439,49 @@ class dft_system:
 
 class system_ase(dft_system):
 
-    def __init__(self, basis :str, atomstruc : str, scf = True, requires_grad = False, rearrange = True ):
-
-        self.atomstruc = self.create_atomstruc_from_ase(atomstruc)
+    def __init__(self, basis :str, atomstrucstr : str, scf = True, requires_grad = False, rearrange = True ):
+        self.atomstrucstr = atomstrucstr
+        self.atomstruc = self.create_atomstruc_from_ase()
 
         super().__init__(basis,self.atomstruc,  scf, requires_grad, rearrange)
 
-    def create_atomstruc_from_ase(self,atomstruc):
+    def create_atomstruc_from_ase(self):
         """
         creates atomstruc from ase database.
         :param atomstruc: molecule string
         :return: array like [element, [x,y,z], ...]
         """
-        chem_symb = molecule(atomstruc).get_chemical_symbols()
-        atompos =  molecule(atomstruc).get_positions()
+        chem_symb = molecule(self.atomstrucstr).get_chemical_symbols()
+        atompos =  molecule(self.atomstrucstr).get_positions()
+
         arr = []
         for i in range(len(chem_symb)):
             arr.append([chem_symb[i], list(atompos[i])])
         return arr
+
+    def _create_scf_Mol(self):
+        """
+        be aware here just basis as a string works
+        :return: mol object
+        """
+
+        """
+        basis path from 
+        ~/anaconda3/envs/OptimizeBasisFunc/lib/python3.8/site-packages/pyscf/gto/basis
+        """
+        mol = gto.Mole()
+        mol.atom = self.atomstruc
+        mol.unit = 'Bohr'  # in Angstrom
+        mol.verbose = 6
+        mol.output = 'scf.out'
+        mol.symmetry = False
+        mol.basis = self._get_molbasis_fparser_scf()
+        mol.build()
+        print(mol.nelec)
+        mol.charge = sum(molecule(self.atomstrucstr).get_initial_magnetic_moments())
+        mol.spin = sum(molecule(self.atomstrucstr).get_initial_charges())
+        print(mol.nelec)
+        return mol
 
 def system_init(atomstruc, basis1, basis2, **kwargs):
     """
@@ -469,6 +496,15 @@ def system_init(atomstruc, basis1, basis2, **kwargs):
         system_ref = system_ase(basis2, atomstruc,**kwargs)
     else:
         print("pls report")
+
+    print("Molecule structure:")
+
+    [print(system.atomstruc[i]) for i in range(len(system.atomstruc))]
+
+    from collections import Counter
+
+    print("Number of each Atom: ",Counter(molecule(atomstruc).get_chemical_symbols()))
+
     return system.fcn_dict(system_ref)
 ########################################################################################################################
 # now do the actual calculations
@@ -639,13 +675,13 @@ if __name__ == "__main__":
     #              ['O', [-0.5, 0.0, 0.0 ]],
     #              ['H', [0.0, 1.0, 0.0]]]
 
-    atomstruc2 = "isobutene"
+    atomstruc2 = "H2O"
 
     ####################################################################################################################
     # configure basis to optimize:
     ####################################################################################################################
 
-    basis = "STO-3G"
+    basis = "3-21G"
     #system = dft_system(basis, atomstruc)
 
     ####################################################################################################################
@@ -657,6 +693,8 @@ if __name__ == "__main__":
     ####################################################################################################################
 
     func_dict =system_init(atomstruc2,basis,basis_ref) #system.fcn_dict(system_ref)
+
+    print("\n start optimization")
 
     min_bparams = xitorch.optimize.minimize(fcn,  func_dict["bparams"], (func_dict["bpacker"],
                                                                         func_dict["bparams_ref"],
@@ -695,17 +733,43 @@ To configure verbose options on which step something should be printet look at
 
 """
 """
-['PH3', 'P2', 'CH3CHO', 'H2COH', 'CS', 'OCHCHO', 'C3H9C', 'CH3COF', 'CH3CH2OCH3', 'HCOOH', 'HCCl3', 'HOCl', 'H2', 'SH2',
- 'C2H2', 'C4H4NH', 'CH3SCH3', 'SiH2_s3B1d', 'CH3SH', 'CH3CO', 'CO', 'ClF3', 'SiH4', 'C2H6CHOH', 'CH2NHCH2', 'isobutene',
-  'HCO', 'bicyclobutane', 'LiF', 'Si', 'C2H6', 'CN', 'ClNO', 'S', 'SiF4', 'H3CNH2', 'methylenecyclopropane', 'CH3CH2OH',
-   'F', 'NaCl', 'CH3Cl', 'CH3SiH3', 'AlF3', 'C2H3', 'ClF', 'PF3', 'PH2', 'CH3CN', 'cyclobutene', 'CH3ONO', 'SiH3',
-    'C3H6_D3h', 'CO2', 'NO', 'trans-butane', 'H2CCHCl', 'LiH', 'NH2', 'CH', 'CH2OCH2', 'C6H6', 'CH3CONH2',
-     'cyclobutane', 'H2CCHCN', 'butadiene', 'C', 'H2CO', 'CH3COOH', 'HCF3', 'CH3S', 'CS2', 'SiH2_s1A1d', 'C4H4S', 'N2H4'
-     , 'OH', 'CH3OCH3', 'C5H5N', 'H2O', 'HCl', 'CH2_s1A1d', 'CH3CH2SH', 'CH3NO2', 'Cl', 'Be', 'BCl3', 'C4H4O', 'Al',
-      'CH3O', 'CH3OH', 'C3H7Cl', 'isobutane', 'Na', 'CCl4', 'CH3CH2O', 'H2CCHF', 'C3H7', 'CH3', 'O3', 'P', 'C2H4', 
-      'NCCN', 'S2', 'AlCl3', 'SiCl4', 'SiO', 'C3H4_D2d', 'H', 'COF2', '2-butyne', 'C2H5', 'BF3', 'N2O', 'F2O', 'SO2',
-       'H2CCl2', 'CF3CN', 'HCN', 'C2H6NH', 'OCS', 'B', 'ClO', 'C3H8', 'HF', 'O2', 'SO', 'NH', 'C2F4', 'NF3', 'CH2_s3B1d'
-       , 'CH3CH2Cl', 'CH3COCl', 'NH3', 'C3H9N', 'CF4', 'C3H6_Cs', 'Si2H6', 'HCOOCH3', 'O', 'CCH', 'N', 'Si2', 'C2H6SO', 
-       'C5H8', 'H2CF2', 'Li2', 'CH2SCH2', 'C2Cl4', 'C3H4_C3v', 'CH3COCH3', 'F2', 'CH4', 'SH', 'H2CCO', 'CH3CH2NH2', 'Li'
-       , 'N2', 'Cl2', 'H2O2', 'Na2', 'BeH', 'C3H4_C2v', 'NO2']
+['PH3', 'P2', 'CH3CHO', 'H2COH', 'CS', 'OCHCHO', 'C3H9C', 'CH3COF', 
+'CH3CH2OCH3', 'HCOOH', 'HCCl3', 'HOCl', 'H2', 'SH2','C2H2', 'C4H4NH', 
+'CH3SCH3', 'SiH2_s3B1d', 'CH3SH','CH3CO', 'CO', 'ClF3', 'SiH4', 'C2H6CHOH',
+'CH2NHCH2', 'isobutene','HCO', 'bicyclobutane', 'LiF', 'Si', 'C2H6', 'CN', 
+'ClNO', 'S', 'SiF4', 'H3CNH2', 'methylenecyclopropane', 'CH3CH2OH','F', 'NaCl',
+'CH3Cl', 'CH3SiH3', 'AlF3', 'C2H3', 'ClF', 'PF3', 'PH2', 'CH3CN', 'cyclobutene', 
+'CH3ONO', 'SiH3', 'C3H6_D3h', 'CO2', 'NO', 'trans-butane', 'H2CCHCl', 'LiH', 'NH2',
+'CH', 'CH2OCH2', 'C6H6', 'CH3CONH2', 'cyclobutane', 'H2CCHCN', 'butadiene', 'C', 
+'H2CO', 'CH3COOH', 'HCF3', 'CH3S', 'CS2', 'SiH2_s1A1d', 'C4H4S', 'N2H4', 'OH', 'CH3OCH3',
+'C5H5N', 'H2O', 'HCl', 'CH2_s1A1d', 'CH3CH2SH', 'CH3NO2', 'Cl', 'Be', 'BCl3', 'C4H4O', 'Al',
+'CH3O', 'CH3OH', 'C3H7Cl', 'isobutane', 'Na', 'CCl4', 'CH3CH2O', 'H2CCHF', 'C3H7', 'CH3', 'O3', 
+'P', 'C2H4', 'NCCN', 'S2', 'AlCl3', 'SiCl4', 'SiO', 'C3H4_D2d', 'H', 'COF2', '2-butyne', 
+'C2H5', 'BF3', 'N2O', 'F2O', 'SO2','H2CCl2', 'CF3CN', 'HCN', 'C2H6NH', 'OCS', 'B', 'ClO', 
+'C3H8', 'HF', 'O2', 'SO', 'NH', 'C2F4', 'NF3', 'CH2_s3B1d','CH3CH2Cl', 'CH3COCl', 'NH3', 
+'C3H9N', 'CF4', 'C3H6_Cs', 'Si2H6', 'HCOOCH3', 'O', 'CCH', 'N', 'Si2', 'C2H6SO', 'C5H8', 
+'H2CF2', 'Li2', 'CH2SCH2', 'C2Cl4', 'C3H4_C3v', 'CH3COCH3', 'F2', 'CH4', 'SH', 'H2CCO', 
+'CH3CH2NH2', 'Li', 'N2', 'Cl2', 'H2O2', 'Na2', 'BeH', 'C3H4_C2v', 'NO2']
 """
+
+#
+# def test(molecule):
+#     basis = "STO-3G"
+#     basis_ref = "cc-pvdz"
+#     func_dict = system_init(molecule, basis, basis_ref)
+#     min_bparams = xitorch.optimize.minimize(fcn, func_dict["bparams"], (func_dict["bpacker"],
+#                                                                         func_dict["bparams_ref"],
+#                                                                         func_dict["bpacker_ref"],
+#                                                                         func_dict["atomstruc_dqc"],
+#                                                                         func_dict["atomstruc"],
+#                                                                         func_dict["coeffM"],
+#                                                                         func_dict["occ_scf"],), step=2e-6,
+#                                             method="Adam", maxiter=1000, verbose=True)  # ,method = "Adam"
+#     return min_bparams
+#
+# with ThreadPoolExecutor(max_workers=4) as executor:
+#     result = executor.map(test,["H2O", "CH4"])
+#
+# for re in result:
+#     print("Result ==========================>", re)
+
