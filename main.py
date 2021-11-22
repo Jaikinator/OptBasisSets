@@ -248,24 +248,20 @@ class dft_system:
     def scf_dft_calc(self):
         mf = scf.RHF(self.mol)
         mf.kernel()
+        mf.xc = 'b3lyp'
         return mf
+
     def _coeff_mat_scf(self):
         """
         just creates the coefficiency matrix for different input basis
         :return coefficient- matrix
         """
-
-        # mf = scf.RHF(self.mol)
-        # mf.kernel()
-
         return torch.tensor(self.dft.mo_coeff)
 
     def _get_occ(self):
         """
         get density matrix
         """
-
-
         return torch.tensor(self.dft.get_occ())
 
     def _get_ovlp_sfc(self):
@@ -277,10 +273,18 @@ class dft_system:
 
     @property
     def molbasis(self):
+        """
+        getter for molbasis obj.
+        """
         return self._molbasis
 
     @molbasis.setter
     def molbasis(self, var = None):
+        """
+        setter for molbasis
+        :param var: is none basis is going to be created from NWCHem file
+        :return: basis dict
+        """
         if var == None:
             self._molbasis = self._get_molbasis_fparser_scf()
         else:
@@ -311,6 +315,9 @@ class dft_system:
     @property
     def get_ovlp_scf(self):
         return self._get_ovlp_sfc()
+    @property
+    def get_tot_energy_scf(self):
+        return self.scf_dft_calc().energy_tot()
     ################################
     #extra staff to configure class:
     ################################
@@ -498,7 +505,7 @@ class system_ase(dft_system):
 
 def system_init(atomstruc, basis1, basis2, **kwargs):
     """
-    placeholder to get one fct to define a hole system
+    get system classes and dict for the optimization back.
     """
 
     if type(atomstruc) is list:
@@ -518,7 +525,27 @@ def system_init(atomstruc, basis1, basis2, **kwargs):
 
     print("Number of each Atom: ",Counter(molecule(atomstruc).get_chemical_symbols()))
 
-    return system.fcn_dict(system_ref)
+    return system, system_ref,system.fcn_dict(system_ref)
+
+def scf_basis_from_dqc(bparams, bpacker ):
+    """
+    creates a pyscf type basis dict out of an dqc basis input
+     :param bparams: torch.tensor with coeff of basis set
+    :param bpacker: xitorch._core.packer.Packer object to create the CGTOBasis out of the bparams
+    :return: dict where each element gots his own basis arr
+    """
+    basis = bpacker.construct_from_tensor(bparams)
+    bdict = {}
+
+    for el in basis:
+        arr = []
+        for CGTOB in basis[el]:
+            innerarr = [CGTOB.angmom]
+            for al,co in zip(CGTOB.alphas, CGTOB.coeffs):
+                innerarr.append([float(al), float(co)])
+            arr.append(innerarr)
+        bdict[el] = arr
+    return bdict
 ########################################################################################################################
 # now do the actual calculations
 ########################################################################################################################
@@ -674,6 +701,39 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
     return -torch.trace(_projection)/torch.sum(occ_scf)
 
+
+def scf_dft_energy(basis, atomstruc):
+    if type(atomstruc) is str:
+        mol_ase =  molecule(atomstruc)
+        chem_symb = mol_ase.get_chemical_symbols()
+        atompos = mol_ase.get_positions()
+
+        arr = []
+        for i in range(len(chem_symb)):
+            arr.append([chem_symb[i], list(atompos[i])])
+    else:
+        arr = atomstruc
+
+    mol = gto.Mole()
+    mol.atom =arr
+    mol.unit = 'Bohr'  # in Angstrom
+    mol.verbose = 6
+    mol.output = 'scf.out'
+    mol.symmetry = False
+    mol.basis = basis
+    # mol.basis = gto.basis.load(self.basis, 'Li')
+    try:
+        mol.spin = 0
+        mol.build()
+    except:
+        mol.spin = 1
+        mol.build()
+
+    mf = scf.RHF(mol)
+    mf.kernel()
+    mf.xc = 'b3lyp'
+    return mf.energy_tot()
+
 if __name__ == "__main__":
 
 
@@ -702,45 +762,31 @@ if __name__ == "__main__":
 
     ####################################################################################################################
 
-    func_dict =system_init(atomstruc2,basis,basis_ref) #system.fcn_dict(system_ref)
+    bsys1, bsys2, func_dict =system_init(atomstruc2,basis,basis_ref) #system.fcn_dict(system_ref)
 
     print("\n start optimization")
 
-    # min_bparams = xitorch.optimize.minimize(fcn,  func_dict["bparams"], (func_dict["bpacker"],
-    #                                                                     func_dict["bparams_ref"],
-    #                                                                     func_dict["bpacker_ref"],
-    #                                                                     func_dict["atomstruc_dqc"],
-    #                                                                     func_dict["atomstruc"],
-    #                                                                     func_dict["coeffM"],
-    #                                                                     func_dict["occ_scf"],),step = 2e-6,method = "Adam",maxiter = 100, verbose = True)# ,method = "Adam"
+    min_bparams = xitorch.optimize.minimize(fcn,  func_dict["bparams"], (func_dict["bpacker"],
+                                                                        func_dict["bparams_ref"],
+                                                                        func_dict["bpacker_ref"],
+                                                                        func_dict["atomstruc_dqc"],
+                                                                        func_dict["atomstruc"],
+                                                                        func_dict["coeffM"],
+                                                                        func_dict["occ_scf"],),step = 2e-6,method = "Adam",maxiter = 1000000, verbose = True)# ,method = "Adam"
 
+
+    initenergy = system_ase(basis, atomstruc2).get_tot_energy_scf
+    print(f"total energy scf with {basis} as initial basis:\n",
+          initenergy)
+    print(f"total energy scf with {basis_ref} as reference basis:\n",
+          bsys2.get_tot_energy_scf)
+    print("energy after optimization of basis as basis set:\n",
+          scf_dft_energy(scf_basis_from_dqc(min_bparams, func_dict["bpacker"]), atomstruc2))
     # print(f"{basis}: \t", func_dict["bparams"],"len: ",len(func_dict["bparams"]))
     # print(f"{basis_ref}:\t", func_dict["bparams_ref"],"len: ",len(func_dict["bparams_ref"]))
     # print("Opt params:\t", min_bparams,"len: ",len(min_bparams))
-    test = system_ase("STO-3G", "CH4", scf = True)
-    # print(func_dict["bparams"])
-    print("scf",test.get_basis_scf )
-    print("dqc",test.get_basis_dqc)
 
-def scf_basis_from_dqc(bparams, bpacker ):
-    """
-    creates a pyscf type basis dict out of an dqc basis input
-     :param bparams: torch.tensor with coeff of basis set
-    :param bpacker: xitorch._core.packer.Packer object to create the CGTOBasis out of the bparams
-    :return: dict where each element gots his own basis arr
-    """
-    basis = bpacker.construct_from_tensor(bparams)
-    bdict = {}
 
-    for el in basis:
-        arr = []
-        for CGTOB in basis[el]:
-            innerarr = [CGTOB.angmom]
-            for al,co in zip(CGTOB.alphas, CGTOB.coeffs):
-                innerarr.append([float(al), float(co)])
-            arr.append(innerarr)
-        bdict[el] = arr
-    return bdict
 
 
 
