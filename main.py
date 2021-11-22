@@ -82,9 +82,9 @@ class dft_system:
                 self.lbasis = self._rearrange_basis_dqc()
 
         if scf == True:
-
+            self.molbasis = None
             self.mol = self._create_scf_Mol()
-
+            self.dft = self.scf_dft_calc()
     ################################
     #dqc stuff:
     ################################
@@ -176,7 +176,7 @@ class dft_system:
         return self.atomstruc_dqc
 
     @property
-    def get_basis(self):
+    def get_basis_dqc(self):
         return self.lbasis
 
     @property
@@ -217,7 +217,7 @@ class dft_system:
                 print(f"Downloaded to {os.path.abspath(fname)}")
 
             file = open(f"{folderpath}/{basisname}.{self.elements[i]}.nw").read()
-            bdict[str(self.element_dict[self.elements[i]])] = gto.basis.parse(file)
+            bdict[str(self.element_dict[self.elements[i]])] = gto.basis.parse(file,optimize=False)
         return bdict
 
     def _create_scf_Mol(self):
@@ -236,7 +236,7 @@ class dft_system:
         mol.verbose = 6
         mol.output = 'scf.out'
         mol.symmetry = False
-        mol.basis  = self._get_molbasis_fparser_scf()
+        mol.basis  = self.molbasis
         #mol.basis = gto.basis.load(self.basis, 'Li')
         try:
             mol.spin = 0
@@ -245,25 +245,28 @@ class dft_system:
             mol.spin = 1
             return mol.build()
 
-
+    def scf_dft_calc(self):
+        mf = scf.RHF(self.mol)
+        mf.kernel()
+        return mf
     def _coeff_mat_scf(self):
         """
         just creates the coefficiency matrix for different input basis
         :return coefficient- matrix
         """
 
-        mf = scf.RHF(self.mol)
-        mf.kernel()
-        return torch.tensor(mf.mo_coeff)
+        # mf = scf.RHF(self.mol)
+        # mf.kernel()
+
+        return torch.tensor(self.dft.mo_coeff)
 
     def _get_occ(self):
         """
         get density matrix
         """
 
-        mf = scf.RHF(self.mol)
-        mf.kernel()
-        return torch.tensor(mf.get_occ())
+
+        return torch.tensor(self.dft.get_occ())
 
     def _get_ovlp_sfc(self):
         """
@@ -272,6 +275,16 @@ class dft_system:
         """
         return torch.Tensor(self.mol.get_ovlp()).type(torch.float64)
 
+    @property
+    def molbasis(self):
+        return self._molbasis
+
+    @molbasis.setter
+    def molbasis(self, var = None):
+        if var == None:
+            self._molbasis = self._get_molbasis_fparser_scf()
+        else:
+            self._molbasis = var
     @property
     def get_basis_scf(self):
         return self._get_molbasis_fparser_scf()
@@ -523,7 +536,6 @@ def blister(atomstruc : list, basis : dict, refbasis :dict):
     bref_arr = [refbasis[elem[i]] for i in range(len(elem))]
     return b_arr + bref_arr
 
-
 def _num_gauss(basis : list, restbasis : list, atomstruc = False):
     """
     calc the number of primitive Gaussian's in a basis set so that the elements of an overlap matrix can be defined.
@@ -546,8 +558,6 @@ def _num_gauss(basis : list, restbasis : list, atomstruc = False):
         for el in restbasis[atomstruc[i][0]]:
             n_restbasis += 2 * el.angmom + 1
     return [n_basis, n_restbasis]
-
-
 
 def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
     """
@@ -645,10 +655,10 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     basis = bpacker.construct_from_tensor(bparams) #create a CGTOBasis Object (set informations about gradient, normalization etc)
 
     ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
-    if len(atomstruc) !=  len(basis):
-        num_gauss = _num_gauss(basis, ref_basis, atomstruc)
-    else:
-        num_gauss = _num_gauss(basis, ref_basis)
+    # if len(atomstruc) !=  len(basis):
+    #     num_gauss = _num_gauss(basis, ref_basis, atomstruc)
+    # else:
+    num_gauss = _num_gauss(basis, ref_basis,atomstruc)
     basis_cross = blister(atomstruc,basis,ref_basis)
 
     colap = _crossoverlap(atomstruc_dqc, basis_cross)
@@ -696,17 +706,42 @@ if __name__ == "__main__":
 
     print("\n start optimization")
 
-    min_bparams = xitorch.optimize.minimize(fcn,  func_dict["bparams"], (func_dict["bpacker"],
-                                                                        func_dict["bparams_ref"],
-                                                                        func_dict["bpacker_ref"],
-                                                                        func_dict["atomstruc_dqc"],
-                                                                        func_dict["atomstruc"],
-                                                                        func_dict["coeffM"],
-                                                                        func_dict["occ_scf"],),step = 2e-6,method = "Adam",maxiter = 1000000, verbose = True)# ,method = "Adam"
+    # min_bparams = xitorch.optimize.minimize(fcn,  func_dict["bparams"], (func_dict["bpacker"],
+    #                                                                     func_dict["bparams_ref"],
+    #                                                                     func_dict["bpacker_ref"],
+    #                                                                     func_dict["atomstruc_dqc"],
+    #                                                                     func_dict["atomstruc"],
+    #                                                                     func_dict["coeffM"],
+    #                                                                     func_dict["occ_scf"],),step = 2e-6,method = "Adam",maxiter = 100, verbose = True)# ,method = "Adam"
 
-    print(f"{basis}: \t", func_dict["bparams"],"len: ",len(func_dict["bparams"]))
-    print(f"{basis_ref}:\t", func_dict["bparams_ref"],"len: ",len(func_dict["bparams_ref"]))
-    print("Opt params:\t", min_bparams,"len: ",len(min_bparams))
+    # print(f"{basis}: \t", func_dict["bparams"],"len: ",len(func_dict["bparams"]))
+    # print(f"{basis_ref}:\t", func_dict["bparams_ref"],"len: ",len(func_dict["bparams_ref"]))
+    # print("Opt params:\t", min_bparams,"len: ",len(min_bparams))
+    test = system_ase("STO-3G", "CH4", scf = True)
+    # print(func_dict["bparams"])
+    print("scf",test.get_basis_scf )
+    print("dqc",test.get_basis_dqc)
+
+def scf_basis_from_dqc(bparams, bpacker ):
+    """
+    creates a pyscf type basis dict out of an dqc basis input
+     :param bparams: torch.tensor with coeff of basis set
+    :param bpacker: xitorch._core.packer.Packer object to create the CGTOBasis out of the bparams
+    :return: dict where each element gots his own basis arr
+    """
+    basis = bpacker.construct_from_tensor(bparams)
+    bdict = {}
+
+    for el in basis:
+        arr = []
+        for CGTOB in basis[el]:
+            innerarr = [CGTOB.angmom]
+            for al,co in zip(CGTOB.alphas, CGTOB.coeffs):
+                innerarr.append([float(al), float(co)])
+            arr.append(innerarr)
+        bdict[el] = arr
+    return bdict
+
 
 
 
