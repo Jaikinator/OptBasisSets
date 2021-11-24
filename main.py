@@ -1,4 +1,4 @@
-from pyscf import gto, scf
+from pyscf import gto, scf, dft
 import dqc
 import torch
 import xitorch as xt
@@ -19,7 +19,7 @@ from ase.collections import g2
 import pymatgen.core.periodic_table as peri
 
 #try paralaziation:
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 
 ########################################################################################################################
 # check if GPU is used:
@@ -35,7 +35,7 @@ def cuda_device_checker(memory  = False):
             print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
             print('Cached:   ', round(torch.cuda.memory_reserved(0) / 1024 ** 3, 1), 'GB')
 
-cuda_device_checker()
+# cuda_device_checker()
 
 ########################################################################################################################
 # configure torch tensor
@@ -64,7 +64,7 @@ class dft_system:
         :param requires_grad: support gradient of torch.Tensor
         :param rearrange: if True the dqc basis will be rearranged to match the basis read by scf
         """
-        self.basis = basis
+        self.basis = basis #just str of basis
         self.atomstruc = atomstruc
         self.atomstruc_dqc = self._arr_int_conv()
         self.element_dict = self._generateElementdict()
@@ -72,19 +72,22 @@ class dft_system:
 
         if rearrange == False:
             if requires_grad == False :
-                self.lbasis = self._loadbasis_dqc(requires_grad=False)  # loaded dqc basis
+                basisparam  = self._loadbasis_dqc(requires_grad=False)  # loaded dqc basis
             else:
-                self.lbasis = self._loadbasis_dqc()
+                basisparam  = self._loadbasis_dqc()
         else:
             if requires_grad == False :
-                self.lbasis = self._rearrange_basis_dqc(requires_grad=False)  # loaded dqc basis
+                basisparam = self._rearrange_basis_dqc(requires_grad=False)  # loaded dqc basis
             else:
-                self.lbasis = self._rearrange_basis_dqc()
+                basisparam = self._rearrange_basis_dqc()
+
+        self.lbasis = basisparam #basis with parameters in dqc format
 
         if scf == True:
             self.molbasis = None
             self.mol = self._create_scf_Mol()
             self.dft = self.scf_dft_calc()
+
     ################################
     #dqc stuff:
     ################################
@@ -128,7 +131,6 @@ class dft_system:
             # basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis[i]}", **kwargs) for i in range(len(self.elements))]
             # return basis
 
-
     def _rearrange_basis_dqc(self, **kwargs):
         basis = self._loadbasis_dqc(**kwargs)
         bout = {}
@@ -164,7 +166,7 @@ class dft_system:
 
         elem = [self.atomstruc[i][0] for i in range(len(self.atomstruc))]
         basis = [self.lbasis[elem[i]] for i in range(len(elem))]
-        atomzs, atompos = parse_moldesc(self.get_atomstruc_dqc())
+        atomzs, atompos = parse_moldesc(self.atomstruc_dqc)
         atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
         wrap = dqc.hamilton.intor.LibcintWrapper(
             atombases)  # creates an wrapper object to pass informations on lower functions
@@ -232,7 +234,7 @@ class dft_system:
         """
         mol = gto.Mole()
         mol.atom = self.atomstruc
-        mol.unit = 'Bohr'  # in Angstrom
+        mol.unit = 'Bohr'  # Angstrom Bohr
         mol.verbose = 6
         mol.output = 'scf.out'
         mol.symmetry = False
@@ -246,9 +248,9 @@ class dft_system:
             return mol.build()
 
     def scf_dft_calc(self):
-        mf = scf.RHF(self.mol)
+        mf = dft.RKS(self.mol)
         mf.kernel()
-        mf.xc = 'b3lyp'
+        mf.xc = "GGA_X_B88 + GGA_C_LYP" #'b3lyp'
         return mf
 
     def _coeff_mat_scf(self):
@@ -329,7 +331,7 @@ class dft_system:
         elements_arr  = [self.atomstruc[i][0] for i in range(len(self.atomstruc))]
         for i in range(len(elements_arr)):
             if type(elements_arr[i]) is str:
-                elements_arr[i] = self.element_dict[elements_arr[i]]
+                    elements_arr[i] = self.element_dict[elements_arr[i]]
         return elements_arr
 
     def _generateElementdict(self):
@@ -433,6 +435,27 @@ class dft_system:
     ################################
     # relevant export dict:
     ################################
+    def _num_gauss(self,refsystem):
+        """
+        calc the number of primitive Gaussian's in a basis set so that the elements of an overlap matrix can be defined.
+        :param basis: list
+            basis to get optimized
+        :param restbasis: list
+            optimized basis
+        :return: int
+            number of elements of each basis set
+
+        """
+        n_basis = 0
+        n_restbasis = 0
+
+        for i in range(len(self.atomstruc)):
+            for el in self.lbasis[self.atomstruc[i][0]]:
+                n_basis += 2 * el.angmom + 1
+
+            for el in refsystem.restbasis[atomstruc[i][0]]:
+                n_restbasis += 2 * el.angmom + 1
+        return [n_basis, n_restbasis]
     def fcn_dict(self,ref_system):
         """
         def dictionary to input in fcn
@@ -517,13 +540,13 @@ def system_init(atomstruc, basis1, basis2, **kwargs):
     else:
         print("pls report")
 
-    print("Molecule structure:")
+    # print("Molecule structure:")
+    #
+    # [print(system.atomstruc[i]) for i in range(len(system.atomstruc))]
 
-    [print(system.atomstruc[i]) for i in range(len(system.atomstruc))]
-
-    from collections import Counter
-
-    print("Number of each Atom: ",Counter(molecule(atomstruc).get_chemical_symbols()))
+    # from collections import Counter
+    #
+    # print("Number of each Atom: ",Counter(molecule(atomstruc).get_chemical_symbols()))
 
     return system, system_ref,system.fcn_dict(system_ref)
 
@@ -682,9 +705,8 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     basis = bpacker.construct_from_tensor(bparams) #create a CGTOBasis Object (set informations about gradient, normalization etc)
 
     ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
-    # if len(atomstruc) !=  len(basis):
-    #     num_gauss = _num_gauss(basis, ref_basis, atomstruc)
-    # else:
+
+
     num_gauss = _num_gauss(basis, ref_basis,atomstruc)
     basis_cross = blister(atomstruc,basis,ref_basis)
 
@@ -697,7 +719,7 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
     _projection = torch.zeros((_projt.shape[0], occ_scf.shape[0]), dtype = torch.float64)
 
     for i in range(len(occ_scf)):
-        _projection[:,i] = _projt[:,i] * occ_scf[i]
+        _projection[:,i] = torch.mul(_projt[:,i] , occ_scf[i])
 
     return -torch.trace(_projection)/torch.sum(occ_scf)
 
@@ -713,7 +735,6 @@ def scf_dft_energy(basis, atomstruc):
             arr.append([chem_symb[i], list(atompos[i])])
     else:
         arr = atomstruc
-
     mol = gto.Mole()
     mol.atom =arr
     mol.unit = 'Bohr'  # in Angstrom
@@ -721,7 +742,7 @@ def scf_dft_energy(basis, atomstruc):
     mol.output = 'scf.out'
     mol.symmetry = False
     mol.basis = basis
-    # mol.basis = gto.basis.load(self.basis, 'Li')
+
     try:
         mol.spin = 0
         mol.build()
@@ -734,6 +755,8 @@ def scf_dft_energy(basis, atomstruc):
     mf.xc = 'b3lyp'
     return mf.energy_tot()
 
+
+
 if __name__ == "__main__":
 
 
@@ -741,11 +764,11 @@ if __name__ == "__main__":
     # configure atomic system:
     ####################################################################################################################
 
-    # atomstruc = [['H', [0.5, 0.0, 0.0]],
-    #              ['O', [-0.5, 0.0, 0.0 ]],
-    #              ['H', [0.0, 1.0, 0.0]]]
+    # atomstruc = [['H', [0.5, 0.0, 0.0]]]
+    #              # ['O', [-0.5, 0.0, 0.0 ]],
+    #              # ['H', [0.0, 1.0, 0.0]]]
 
-    atomstruc2 = "CH4"
+    atomstruc = "CH4"
 
     ####################################################################################################################
     # configure basis to optimize:
@@ -762,7 +785,7 @@ if __name__ == "__main__":
 
     ####################################################################################################################
 
-    bsys1, bsys2, func_dict =system_init(atomstruc2,basis,basis_ref) #system.fcn_dict(system_ref)
+    bsys1, bsys2, func_dict = system_init(atomstruc,basis,basis_ref) #system.fcn_dict(system_ref)
 
     print("\n start optimization")
 
@@ -772,16 +795,44 @@ if __name__ == "__main__":
                                                                         func_dict["atomstruc_dqc"],
                                                                         func_dict["atomstruc"],
                                                                         func_dict["coeffM"],
-                                                                        func_dict["occ_scf"],),step = 2e-6,method = "Adam",maxiter = 1000000, verbose = True)# ,method = "Adam"
+                                                                        func_dict["occ_scf"],),step = 2e-7,method = "Adam", maxiter = 1, verbose = True)# ,method = "Adam"
 
-
-    initenergy = system_ase(basis, atomstruc2).get_tot_energy_scf
+    testsystem = system_ase(basis, atomstruc)
+    testsystem.get_ovlp_dqc
+    initenergy = testsystem.get_tot_energy_scf
     print(f"total energy scf with {basis} as initial basis:\n",
           initenergy)
     print(f"total energy scf with {basis_ref} as reference basis:\n",
           bsys2.get_tot_energy_scf)
-    print("energy after optimization of basis as basis set:\n",
-          scf_dft_energy(scf_basis_from_dqc(min_bparams, func_dict["bpacker"]), atomstruc2))
+    # print("energy after optimization of basis as basis set:\n",
+    #       scf_dft_energy(scf_basis_from_dqc(min_bparams, func_dict["bpacker"]), atomstruc))
+    # print(dft_system(basis, atomstruc).get_basis_scf)
+    # print(scf_basis_from_dqc(min_bparams, func_dict["bpacker"]))
+
+    basist = func_dict["bpacker"].construct_from_tensor(min_bparams)
+
+    atomzs, atomposs = dqc.parse_moldesc(system_ase(basis, atomstruc).atomstruc_dqc)
+    mol = dqc.Mol((atomzs, atomposs), basis=basist)
+
+
+    xcm = "GGA_X_B88 + GGA_C_LYP"
+
+    qc = dqc.KS(mol, xc = xcm).run()
+    ene = qc.energy()
+    print("dqc ene: ", ene)
+
+    mol2 = dqc.Mol((atomzs, atomposs), basis="STO-3G")
+
+    qc2 = dqc.KS(mol2, xc=xcm).run()
+    ene2 = qc2.energy()
+    print("dqc ene STO-3G",ene2)
+
+
+    mol3 = dqc.Mol((atomzs, atomposs), basis="cc-pvtz")
+
+    qc2 = dqc.KS(mol3, xc=xcm).run()
+    ene2 = qc2.energy()
+    print("dqc ene cc-pvtz", ene2)
     # print(f"{basis}: \t", func_dict["bparams"],"len: ",len(func_dict["bparams"]))
     # print(f"{basis_ref}:\t", func_dict["bparams_ref"],"len: ",len(func_dict["bparams_ref"]))
     # print("Opt params:\t", min_bparams,"len: ",len(min_bparams))
@@ -833,24 +884,94 @@ To configure verbose options on which step something should be printet look at
 'CH3CH2NH2', 'Li', 'N2', 'Cl2', 'H2O2', 'Na2', 'BeH', 'C3H4_C2v', 'NO2']
 """
 
-#
-# def test(molecule):
-#     basis = "STO-3G"
-#     basis_ref = "cc-pvdz"
-#     func_dict = system_init(molecule, basis, basis_ref)
-#     min_bparams = xitorch.optimize.minimize(fcn, func_dict["bparams"], (func_dict["bpacker"],
-#                                                                         func_dict["bparams_ref"],
-#                                                                         func_dict["bpacker_ref"],
-#                                                                         func_dict["atomstruc_dqc"],
-#                                                                         func_dict["atomstruc"],
-#                                                                         func_dict["coeffM"],
-#                                                                         func_dict["occ_scf"],), step=2e-6,
-#                                             method="Adam", maxiter=1000, verbose=True)  # ,method = "Adam"
-#     return min_bparams
-#
-# with ThreadPoolExecutor(max_workers=4) as executor:
-#     result = executor.map(test,["H2O", "CH4"])
-#
-# for re in result:
-#     print("Result ==========================>", re)
 
+def test(molecule):
+    basis = "STO-3G"
+    basis_ref = "cc-pvdz"
+    sys1,sys2,func_dict = system_init(molecule, basis, basis_ref)
+    min_bparams = xitorch.optimize.minimize(fcn, func_dict["bparams"], (func_dict["bpacker"],
+                                                                        func_dict["bparams_ref"],
+                                                                        func_dict["bpacker_ref"],
+                                                                        func_dict["atomstruc_dqc"],
+                                                                        func_dict["atomstruc"],
+                                                                        func_dict["coeffM"],
+                                                                        func_dict["occ_scf"],), step=2e-5,
+                                            method="Adam", maxiter=1000, verbose=True)  # ,method = "Adam", verbose=True
+    return func_dict, min_bparams
+
+# elements = ["H2O", "CH4","SiH4", "N2O", "methylenecyclopropane"] #, "SiH4", "N2O", "methylenecyclopropane"
+# testdict = {}
+# for i in elements:
+#     sysres,res = test(i)
+#     testdict[f"sys_{i}"] = sysres
+#     testdict[i] =  res
+# #
+# with ThreadPoolExecutor(max_workers=12) as executor:
+#     result = executor.map(test,elements)
+#     resopt1 = executor.submit(test, "H2O")
+#     resopt2 =executor.submit(test, "CH4")
+#     resopt3 =executor.submit(test, "SiH4")
+#     resopt4 =executor.submit(test, "N2O")
+#     resopt5 =executor.submit(test, "methylenecyclopropane")
+#
+# executor.shutdown(wait = True)
+#
+#
+# basis = "STO-3G"
+# basis_ref = "cc-pvdz"
+#
+# sys1 = system_ase(basis, "H2O").get_tot_energy_scf
+# sys1_ref = system_ase(basis_ref, "H2O").get_tot_energy_scf
+# print(f"{elements[0]}:\n\tenergy {basis}: {sys1}\n\tenergy {basis_ref}: {sys1_ref}\n\t energy opt:",
+#       scf_dft_energy(scf_basis_from_dqc(resopt1.result()[1], resopt1.result()[0]["bpacker"]),"H2O"))
+#
+# sys2 = system_ase(basis, "CH4").get_tot_energy_scf
+# sys2_ref = system_ase(basis_ref, "CH4").get_tot_energy_scf
+# print(f"{elements[1]}:\n\tenergy {basis}: {sys2}\n\tenergy {basis_ref}: {sys2_ref}\n\t energy opt:",
+#       scf_dft_energy(scf_basis_from_dqc(resopt2.result()[1], resopt2.result()[0]["bpacker"]),"CH4"))
+#
+# sys3 = system_ase(basis, "SiH4").get_tot_energy_scf
+# sys3_ref = system_ase(basis_ref, "SiH4").get_tot_energy_scf
+# print(f"{elements[2]}:\n\tenergy {basis}: {sys3}\n\tenergy {basis_ref}: {sys3_ref}\n\t energy opt:",
+#       scf_dft_energy(scf_basis_from_dqc(resopt3.result()[1], resopt3.result()[0]["bpacker"]),"SiH4"))
+#
+# sys4 = system_ase(basis, "N2O").get_tot_energy_scf
+# sys4_ref = system_ase(basis_ref, "N2O").get_tot_energy_scf
+# print(f"{elements[3]}:\n\tenergy {basis}: {sys4}\n\tenergy {basis_ref}: {sys4_ref}\n\t energy opt:",
+#       scf_dft_energy(scf_basis_from_dqc(resopt4.result()[1], resopt4.result()[0]["bpacker"]),"N2O"))
+#
+# sys5 = system_ase(basis, "methylenecyclopropane").get_tot_energy_scf
+# sys5_ref = system_ase(basis_ref, "methylenecyclopropane").get_tot_energy_scf
+# print(f"{elements[4]}:\n\tenergy {basis}: {sys5}\n\tenergy {basis_ref}: {sys5_ref}\n\tenergy opt:",
+#       scf_dft_energy(scf_basis_from_dqc(resopt5.result()[1], resopt5.result()[0]["bpacker"]),"methylenecyclopropane"))
+#
+#
+#
+#
+# basis = "STO-3G"
+# basis_ref = "cc-pvtz"
+#
+# sys1 = system_ase(basis, "H2O").get_tot_energy_scf
+# sys1_ref = system_ase(basis_ref, "H2O").get_tot_energy_scf
+# print(f"{elements[0]}:\n\tenergy {basis}: {sys1}\n\tenergy {basis_ref}: {sys1_ref}\n\t energy opt:",
+#       scf_dft_energy(scf_basis_from_dqc(testdict["H2O"], testdict["sys_H2O"]["bpacker"]),"H2O"))
+#
+# sys2 = system_ase(basis, "CH4").get_tot_energy_scf
+# sys2_ref = system_ase(basis_ref, "CH4").get_tot_energy_scf
+# print(f"{elements[1]}:\n\tenergy {basis}: {sys2}\n\tenergy {basis_ref}: {sys2_ref}\n\t energy opt:",
+#       scf_dft_energy(scf_basis_from_dqc(testdict["CH4"], testdict["sys_CH4"]["bpacker"]),"CH4"))
+#
+# sys3 = system_ase(basis, "SiH4").get_tot_energy_scf
+# sys3_ref = system_ase(basis_ref, "SiH4").get_tot_energy_scf
+# print(f"{elements[2]}:\n\tenergy {basis}: {sys3}\n\tenergy {basis_ref}: {sys3_ref}\n\t energy opt:",
+#       scf_dft_energy(scf_basis_from_dqc(testdict["SiH4"], testdict["sys_SiH4"]["bpacker"]),"SiH4"))
+#
+# sys4 = system_ase(basis, "N2O").get_tot_energy_scf
+# sys4_ref = system_ase(basis_ref, "N2O").get_tot_energy_scf
+# print(f"{elements[3]}:\n\tenergy {basis}: {sys4}\n\tenergy {basis_ref}: {sys4_ref}\n\t energy opt:",
+#       scf_dft_energy(scf_basis_from_dqc(testdict["N2O"], testdict["sys_N2O"]["bpacker"]),"N2O"))
+#
+# sys5 = system_ase(basis, "methylenecyclopropane").get_tot_energy_scf
+# sys5_ref = system_ase(basis_ref, "methylenecyclopropane").get_tot_energy_scf
+# print(f"{elements[4]}:\n\tenergy {basis}: {sys5}\n\tenergy {basis_ref}: {sys5_ref}\n\tenergy opt:",
+#       scf_dft_energy(scf_basis_from_dqc(testdict["methylenecyclopropane"], testdict["sys_methylenecyclopropane"]["bpacker"]),"methylenecyclopropane"))
