@@ -587,7 +587,7 @@ def blister(atomstruc : list, basis : dict, refbasis :dict):
     bref_arr = [refbasis[elem[i]] for i in range(len(elem))]
     return b_arr + bref_arr
 
-def _cross_selcet(crossmat : torch.Tensor, num_gauss : torch.Tensor, direction : str ):
+def _cross_selcet(crossmat : torch.Tensor, num_gauss : torch.Tensor):
     """
     select the cross overlap matrix part.
     The corssoverlap is defined by the overlap between to basis sets.
@@ -603,22 +603,16 @@ def _cross_selcet(crossmat : torch.Tensor, num_gauss : torch.Tensor, direction :
         - vertical crossoverlap (S_21)
     :param crossmat: crossoverlap mat
     :param num_gauss: number of gaussians in two basis
-    :param direction: type str to select the specific crossoverlap
-                      you can choose between: S_11, S_12_,S_21, S_22
     :return: torch.tensor
     returns the cross overlap matrix between the new and the old basis func
     """
 
-    if direction == "S_11" :
-        return crossmat[0:num_gauss[0],0:num_gauss[0]]
-    elif direction == "S_12":
-        return crossmat[num_gauss[0]:, 0:(len(crossmat) - num_gauss[1])]
-    elif direction == "S_21":
-        return crossmat[0:num_gauss[0], num_gauss[0]:]
-    elif direction == "S_22":
-        return crossmat[num_gauss[0]:, num_gauss[0]:]
-    else:
-        raise UnicodeError("no direction specified")
+    S_11 = crossmat[0:num_gauss[0],0:num_gauss[0]]
+    S_12 = crossmat[num_gauss[0]:, 0:(len(crossmat) - num_gauss[1])]
+    S_21 = crossmat[0:num_gauss[0], num_gauss[0]:]
+    S_22 = crossmat[num_gauss[0]:, num_gauss[0]:]
+    return S_11, S_12, S_21, S_22
+
 
 def _crossoverlap(atomstruc : str, basis : list):
 
@@ -651,10 +645,7 @@ def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Ten
     :param num_gauss: array with length of the basis sets
     :return: Projection Matrix
     """
-
-    S_12 = _cross_selcet(colap, num_gauss, "S_12")
-    S_21 = _cross_selcet(colap, num_gauss, "S_21")
-    S_11 = _cross_selcet(colap, num_gauss, "S_11")
+    S_11, S_12, S_21, S_22 = _cross_selcet(colap, num_gauss)
 
     s21_c = torch.matmul(S_21, coeff)
     s11_s21c = torch.matmul(torch.inverse(S_11), s21_c)
@@ -768,7 +759,7 @@ if __name__ == "__main__":
                                                                         func_dict["atomstruc"],
                                                                         func_dict["coeffM"],
                                                                         func_dict["occ_scf"],
-                                                                        func_dict["num_gauss"], ),step = 2e-6,method = "Adam", maxiter = 100, verbose = True)# ,method = "Adam"
+                                                                        func_dict["num_gauss"], ),step = 2e-6,method = "Adam", maxiter = 10000, verbose = True)# ,method = "Adam"
 
     testsystem = system_ase(basis, atomstruc)
     testsystem.get_ovlp_dqc
