@@ -64,7 +64,7 @@ class dft_system:
         :param requires_grad: support gradient of torch.Tensor
         :param rearrange: if True the dqc basis will be rearranged to match the basis read by scf
         """
-        self.basis = basis #just str of basis
+        self.basis = basis  # just str of basis
         self.atomstruc = atomstruc
         self.atomstruc_dqc = self._arr_int_conv()
         self.element_dict = self._generateElementdict()
@@ -81,7 +81,7 @@ class dft_system:
             else:
                 basisparam = self._rearrange_basis_dqc()
 
-        self.lbasis = basisparam #basis with parameters in dqc format
+        self.lbasis = basisparam  # basis with parameters in dqc format
 
         if scf == True:
             self.molbasis = None
@@ -239,7 +239,7 @@ class dft_system:
         mol.output = 'scf.out'
         mol.symmetry = False
         mol.basis  = self.molbasis
-        #mol.basis = gto.basis.load(self.basis, 'Li')
+
         try:
             mol.spin = 0
             return mol.build()
@@ -453,9 +453,10 @@ class dft_system:
             for el in self.lbasis[self.atomstruc[i][0]]:
                 n_basis += 2 * el.angmom + 1
 
-            for el in refsystem.restbasis[atomstruc[i][0]]:
+            for el in refsystem.lbasis[self.atomstruc[i][0]]:
                 n_restbasis += 2 * el.angmom + 1
-        return [n_basis, n_restbasis]
+        return torch.tensor([n_basis, n_restbasis])
+
     def fcn_dict(self,ref_system):
         """
         def dictionary to input in fcn
@@ -470,15 +471,15 @@ class dft_system:
         basis_ref = ref_system.lbasis
         bpacker_ref = xt.Packer(basis_ref)
         bparams_ref = bpacker_ref.get_param_tensor()
-
+        ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
         return {"bparams": bparams,
                 "bpacker": bpacker,
-                "bparams_ref": bparams_ref,
-                "bpacker_ref": bpacker_ref,
+                "ref_basis": ref_basis,
                 "atomstruc_dqc" : self.atomstruc_dqc,
                 "atomstruc" : self.atomstruc,
                 "coeffM" : ref_system.get_coeff_scf,
-                "occ_scf" : ref_system._get_occ()}
+                "occ_scf" : ref_system._get_occ(),
+                "num_gauss" :  self._num_gauss(ref_system)}
 
 class system_ase(dft_system):
 
@@ -586,30 +587,7 @@ def blister(atomstruc : list, basis : dict, refbasis :dict):
     bref_arr = [refbasis[elem[i]] for i in range(len(elem))]
     return b_arr + bref_arr
 
-def _num_gauss(basis : list, restbasis : list, atomstruc = False):
-    """
-    calc the number of primitive Gaussian's in a basis set so that the elements of an overlap matrix can be defined.
-    :param basis: list
-        basis to get optimized
-    :param restbasis: list
-        optimized basis
-    :return: int
-        number of elements of each basis set
-
-    """
-    n_basis =  0
-    n_restbasis = 0
-
-
-    for i in range(len(atomstruc)):
-        for el in basis[atomstruc[i][0]]:
-            n_basis += 2 * el.angmom + 1
-
-        for el in restbasis[atomstruc[i][0]]:
-            n_restbasis += 2 * el.angmom + 1
-    return [n_basis, n_restbasis]
-
-def _cross_selcet(crossmat : torch.Tensor, num_gauss : list, direction : str ):
+def _cross_selcet(crossmat : torch.Tensor, num_gauss : torch.Tensor, direction : str ):
     """
     select the cross overlap matrix part.
     The corssoverlap is defined by the overlap between to basis sets.
@@ -688,9 +666,8 @@ def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Ten
 # test function
 ########################################################################################################################
 
-def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
-        , bparams_ref: torch.Tensor, bpacker_ref: xitorch._core.packer.Packer
-        , atomstruc_dqc: str, atomstruc : list, coeffM : torch.Tensor, occ_scf : torch.Tensor):
+def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer, ref_basis
+        , atomstruc_dqc: str, atomstruc : list, coeffM : torch.Tensor, occ_scf : torch.Tensor, num_gauss : torch.Tensor):
 
     """
     Function to optimize
@@ -704,10 +681,6 @@ def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer
 
     basis = bpacker.construct_from_tensor(bparams) #create a CGTOBasis Object (set informations about gradient, normalization etc)
 
-    ref_basis = bpacker_ref.construct_from_tensor(bparams_ref)
-
-
-    num_gauss = _num_gauss(basis, ref_basis,atomstruc)
     basis_cross = blister(atomstruc,basis,ref_basis)
 
     colap = _crossoverlap(atomstruc_dqc, basis_cross)
@@ -790,12 +763,12 @@ if __name__ == "__main__":
     print("\n start optimization")
 
     min_bparams = xitorch.optimize.minimize(fcn,  func_dict["bparams"], (func_dict["bpacker"],
-                                                                        func_dict["bparams_ref"],
-                                                                        func_dict["bpacker_ref"],
+                                                                        func_dict["ref_basis"],
                                                                         func_dict["atomstruc_dqc"],
                                                                         func_dict["atomstruc"],
                                                                         func_dict["coeffM"],
-                                                                        func_dict["occ_scf"],),step = 2e-7,method = "Adam", maxiter = 1, verbose = True)# ,method = "Adam"
+                                                                        func_dict["occ_scf"],
+                                                                        func_dict["num_gauss"], ),step = 2e-6,method = "Adam", maxiter = 100, verbose = True)# ,method = "Adam"
 
     testsystem = system_ase(basis, atomstruc)
     testsystem.get_ovlp_dqc
