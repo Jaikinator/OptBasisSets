@@ -1,5 +1,5 @@
 """
-provides all relevant data to get system Obj.
+provides all relevant data to get optb Obj.
 """
 
 el_dict = {1: 'H', 'H': 1,

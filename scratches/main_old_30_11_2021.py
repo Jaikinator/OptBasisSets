@@ -21,7 +21,7 @@ import pymatgen.core.periodic_table as peri
 #try paralaziation:
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 
-from system.Mole import *
+from optb.Mole import *
 
 ########################################################################################################################
 # check if GPU is used:
@@ -46,7 +46,7 @@ def cuda_device_checker(memory  = False):
 torch.set_printoptions(linewidth = 200)
 
 ########################################################################################################################
-# first create class to configure system
+# first create class to configure optb
 ########################################################################################################################
 
 class dft_system:
@@ -56,13 +56,13 @@ class dft_system:
         :param element: array, str or number of the element in the periodic table
         :param basis: name of the basis to optimize if you want to use multiple basis do something like
                       basis = ["basis_1", "basis_2",...,"basis_N"] the array has to be the same length as atomstruc
-        :param atomstruc: structure of the system input like
+        :param atomstruc: structure of the optb input like
                             array([[element, [position]],
                                   [element , [position]],
                                   ...])
                             therefore position has to be the length 3 with float number for each axis position in
                             cartesian space. For example pos = [1.0, 1.0, 1.0]
-        :param scf: if True you get the system as dqc as well as scf system.
+        :param scf: if True you get the optb as dqc as well as scf optb.
         :param requires_grad: support gradient of torch.Tensor
         :param rearrange: if True the dqc basis will be rearranged to match the basis read by scf
         """
@@ -274,7 +274,7 @@ class dft_system:
 
     def _get_ovlp_sfc(self):
         """
-        create the overlap matrix of the pyscf system
+        create the overlap matrix of the pyscf optb
         :return: torch.Tensor (torch.float64)
         """
         return torch.Tensor(self.mol.get_ovlp()).type(torch.float64)
@@ -334,7 +334,7 @@ class dft_system:
 
     def _get_element_arr(self):
         """
-        create array with all elements in the system
+        create array with all elements in the optb
         """
         elements_arr  = [self.atomstruc[i][0] for i in range(len(self.atomstruc))]
         for i in range(len(elements_arr)):
@@ -514,7 +514,7 @@ class system_ase(dft_system):
 
 def system_init(atomstruc, basis1, basis2, **kwargs):
     """
-    get system classes and dict for the optimization back.
+    get optb classes and dict for the optimization back.
     """
 
 
@@ -528,7 +528,7 @@ def system_init(atomstruc, basis1, basis2, **kwargs):
         print("pls report")
     # print("Molecule structure:")
     #
-    # [print(system.atomstruc[i]) for i in range(len(system.atomstruc))]
+    # [print(optb.atomstruc[i]) for i in range(len(optb.atomstruc))]
 
     # from collections import Counter
     #
@@ -748,7 +748,7 @@ if __name__ == "__main__":
 
 
     ####################################################################################################################
-    # configure atomic system:
+    # configure atomic optb:
     ####################################################################################################################
 
     # atomstruc = [['H', [0.5, 0.0, 0.0]],
@@ -763,7 +763,7 @@ if __name__ == "__main__":
     ####################################################################################################################
 
     basis = "STO-3G"
-    #system = dft_system(basis, atomstruc)
+    #optb = dft_system(basis, atomstruc)
 
     ####################################################################################################################
     # configure reference basis:
@@ -773,7 +773,7 @@ if __name__ == "__main__":
 
     ####################################################################################################################
 
-    bsys1, bsys2, func_dict = system_init(atomstruc,basis,basis_ref) #system.fcn_dict(system_ref)
+    bsys1, bsys2, func_dict = system_init(atomstruc,basis,basis_ref) #optb.fcn_dict(system_ref)
 
 
 

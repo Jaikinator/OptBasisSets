@@ -2,7 +2,7 @@
 File that stores class Obj to define a Molecular System
 """
 
-from pyscf import gto, scf, dft
+from pyscf import gto, scf
 import dqc
 import torch
 import xitorch as xt
@@ -16,11 +16,11 @@ import basis_set_exchange as bse # basist set exchange libary
 #get atom pos:
 from ase.build import molecule
 
-from system.params_periodic_system import el_dict #contains dict with all numbers and Symbols of the periodic table
+from optb.params_periodic_system import el_dict #contains dict with all numbers and Symbols of the periodic table
 
 def _get_element_arr(atomstruc):
     """
-    create array with all elements in the system
+    create array with all elements in the optb
     """
     elements_arr = [atomstruc[i][0] for i in range(len(atomstruc))]
     for i in range(len(elements_arr)):
@@ -59,13 +59,16 @@ class MoleSCF:
         :return: mol.basis object
         """
 
-        folderpath = "../NWChem_basis"
+        folderpath = os.path.realpath("data/NWChemBasis")
 
         if os.path.exists(folderpath) == False:
-            warnings.warn("No NWChem_basis folder it will be created.")
-            os.mkdir(folderpath)
+            warnings.warn("No NWChemBasis or data folder exist it will be created.")
+            if not os.path.exists("data"):
+                warnings.warn("data folder will be created")
+                os.mkdir("data")
+            os.mkdir(os.path.abspath(folderpath))
             fullpath = os.path.abspath(folderpath)
-            print(f"NWChem_basis folder is created to {fullpath}")
+            print(f"NWChemBasis folder is created to {fullpath}")
 
         bdict = {}
 
@@ -302,13 +305,13 @@ class Mole:
         :param element: array, str or number of the element in the periodic table
         :param basis: name of the basis to optimize if you want to use multiple basis do something like
                       basis = ["basis_1", "basis_2",...,"basis_N"] the array has to be the same length as atomstruc
-        :param atomstruc: structure of the system input like
+        :param atomstruc: structure of the optb input like
                             array([[element, [position]],
                                   [element , [position]],
                                   ...])
                             therefore position has to be the length 3 with float number for each axis position in
                             cartesian space. For example pos = [1.0, 1.0, 1.0]
-        :param scf: if True you get the system as dqc as well as scf system.
+        :param scf: if True you get the optb as dqc as well as scf optb.
         :param requires_grad: support gradient of torch.Tensor
         :param rearrange: if True the dqc basis will be rearranged to match the basis read by scf
         """
@@ -351,11 +354,11 @@ class Mole_ase:
 
 def Mole_minimizer(basis, ref_basis, atomstruc):
     if type(atomstruc) is str:
-        systopt = Mole_ase(basis, atomstruc, scf = False)  # system to optimize
+        systopt = Mole_ase(basis, atomstruc, scf = False)  # optb to optimize
 
         sys_ref = Mole_ase(ref_basis, atomstruc, requires_grad=False)
     else:
-        systopt = MoleDQC(basis, atomstruc) #system to optimize
+        systopt = MoleDQC(basis, atomstruc) #optb to optimize
 
         sys_ref = Mole(ref_basis, atomstruc, requires_grad = False)
 
@@ -407,3 +410,7 @@ def Mole_minimizer(basis, ref_basis, atomstruc):
                 "num_gauss" :  _num_gauss(system, ref_system)}
 
     return systopt, sys_ref, system_dict(systopt, sys_ref)
+
+
+
+
