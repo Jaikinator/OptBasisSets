@@ -124,7 +124,7 @@ class MoleSCF:
             return mol.build()
 
     def dft_calc(self ):
-        mf = scf.RHF(self.mol)
+        mf = scf.RKS(self.mol)
         mf.kernel()
         mf.xc = self.xc
         return mf

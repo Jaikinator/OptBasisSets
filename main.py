@@ -85,7 +85,7 @@ def scf_dft_energy(basis, atomstruc):
         mol.spin = 1
         mol.build()
 
-    mf = scf.RHF(mol)
+    mf = scf.RKS(mol)
     mf.kernel()
     mf.xc = 'B3LYP'
     return mf.energy_tot()
