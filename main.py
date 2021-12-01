@@ -1,28 +1,8 @@
-from pyscf import gto, scf, dft
-import dqc
-import torch
-import xitorch as xt
 import xitorch.optimize
-from dqc.utils.datastruct import AtomCGTOBasis
 from dqc.utils.misc import gaussian_int
-import dqc.hamilton.intor as intor
-from dqc.api.parser import parse_moldesc
-import warnings #for warnings
-import os
-import basis_set_exchange as bse # basist set exchange libary
-import numpy as np
 
-#get atom pos:
-from ase.build import molecule
+from optb import *
 
-
-import pymatgen.core.periodic_table as peri
-
-#try paralaziation:
-from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
-
-from optb.Mole import *
-from optb.projection import *
 ########################################################################################################################
 # check if GPU is used:
 # setting device on GPU if available, else CPU
@@ -199,7 +179,7 @@ if __name__ == "__main__":
     ####################################################################################################################
     # configure reference basis:
     ####################################################################################################################
-    basis_ref = "cc-pvdz"
+    basis_ref = "cc-pvtz"
     #system_ref = dft_system(basis_ref, atomstruc)
 
     ####################################################################################################################
@@ -216,7 +196,7 @@ if __name__ == "__main__":
                                                                         func_dict["atomstruc"],
                                                                         func_dict["coeffM"],
                                                                         func_dict["occ_scf"],
-                                                                        func_dict["num_gauss"], ),step = 2e-6,method = "Adam", maxiter = 1, verbose = True)# ,method = "Adam"
+                                                                        func_dict["num_gauss"], ),step = 2e-6,method = "Adam", maxiter = 0, verbose = True)# ,method = "Adam"
 
     # testsystem = system_ase(basis, atomstruc)
     testsystem = Mole_ase(basis,atomstruc)
@@ -287,94 +267,3 @@ To configure verbose options on which step something should be printed look at
 """
 
 
-#
-# def test(molecule):
-#     basis = "STO-3G"
-#     basis_ref = "cc-pvtz"
-#     sys1,sys2,func_dict = system_init(molecule, basis, basis_ref)
-#     min_bparams = xitorch.optimize.minimize(fcn, func_dict["bparams"], (func_dict["bpacker"],
-#                                                                         func_dict["bparams_ref"],
-#                                                                         func_dict["bpacker_ref"],
-#                                                                         func_dict["atomstruc_dqc"],
-#                                                                         func_dict["atomstruc"],
-#                                                                         func_dict["coeffM"],
-#                                                                         func_dict["occ_scf"],), step=2e-5,
-#                                             method="Adam", maxiter=1000, verbose=True)  # ,method = "Adam", verbose=True
-#     return func_dict, min_bparams
-
-# elements = ["H2O", "CH4","SiH4", "N2O", "methylenecyclopropane"] #, "SiH4", "N2O", "methylenecyclopropane"
-# testdict = {}
-# for i in elements:
-#     sysres,res = test(i)
-#     testdict[f"sys_{i}"] = sysres
-#     testdict[i] =  res
-# #
-# with ThreadPoolExecutor(max_workers=12) as executor:
-#     result = executor.map(test,elements)
-#     resopt1 = executor.submit(test, "H2O")
-#     resopt2 =executor.submit(test, "CH4")
-#     resopt3 =executor.submit(test, "SiH4")
-#     resopt4 =executor.submit(test, "N2O")
-#     resopt5 =executor.submit(test, "methylenecyclopropane")
-#
-# executor.shutdown(wait = True)
-#
-#
-# basis = "STO-3G"
-# basis_ref = "cc-pvdz"
-#
-# sys1 = system_ase(basis, "H2O").get_tot_energy_scf
-# sys1_ref = system_ase(basis_ref, "H2O").get_tot_energy_scf
-# print(f"{elements[0]}:\n\tenergy {basis}: {sys1}\n\tenergy {basis_ref}: {sys1_ref}\n\t energy opt:",
-#       scf_dft_energy(scf_basis_from_dqc(resopt1.result()[1], resopt1.result()[0]["bpacker"]),"H2O"))
-#
-# sys2 = system_ase(basis, "CH4").get_tot_energy_scf
-# sys2_ref = system_ase(basis_ref, "CH4").get_tot_energy_scf
-# print(f"{elements[1]}:\n\tenergy {basis}: {sys2}\n\tenergy {basis_ref}: {sys2_ref}\n\t energy opt:",
-#       scf_dft_energy(scf_basis_from_dqc(resopt2.result()[1], resopt2.result()[0]["bpacker"]),"CH4"))
-#
-# sys3 = system_ase(basis, "SiH4").get_tot_energy_scf
-# sys3_ref = system_ase(basis_ref, "SiH4").get_tot_energy_scf
-# print(f"{elements[2]}:\n\tenergy {basis}: {sys3}\n\tenergy {basis_ref}: {sys3_ref}\n\t energy opt:",
-#       scf_dft_energy(scf_basis_from_dqc(resopt3.result()[1], resopt3.result()[0]["bpacker"]),"SiH4"))
-#
-# sys4 = system_ase(basis, "N2O").get_tot_energy_scf
-# sys4_ref = system_ase(basis_ref, "N2O").get_tot_energy_scf
-# print(f"{elements[3]}:\n\tenergy {basis}: {sys4}\n\tenergy {basis_ref}: {sys4_ref}\n\t energy opt:",
-#       scf_dft_energy(scf_basis_from_dqc(resopt4.result()[1], resopt4.result()[0]["bpacker"]),"N2O"))
-#
-# sys5 = system_ase(basis, "methylenecyclopropane").get_tot_energy_scf
-# sys5_ref = system_ase(basis_ref, "methylenecyclopropane").get_tot_energy_scf
-# print(f"{elements[4]}:\n\tenergy {basis}: {sys5}\n\tenergy {basis_ref}: {sys5_ref}\n\tenergy opt:",
-#       scf_dft_energy(scf_basis_from_dqc(resopt5.result()[1], resopt5.result()[0]["bpacker"]),"methylenecyclopropane"))
-#
-#
-#
-#
-# basis = "STO-3G"
-# basis_ref = "cc-pvtz"
-#
-# sys1 = system_ase(basis, "H2O").get_tot_energy_scf
-# sys1_ref = system_ase(basis_ref, "H2O").get_tot_energy_scf
-# print(f"{elements[0]}:\n\tenergy {basis}: {sys1}\n\tenergy {basis_ref}: {sys1_ref}\n\t energy opt:",
-#       scf_dft_energy(scf_basis_from_dqc(testdict["H2O"], testdict["sys_H2O"]["bpacker"]),"H2O"))
-#
-# sys2 = system_ase(basis, "CH4").get_tot_energy_scf
-# sys2_ref = system_ase(basis_ref, "CH4").get_tot_energy_scf
-# print(f"{elements[1]}:\n\tenergy {basis}: {sys2}\n\tenergy {basis_ref}: {sys2_ref}\n\t energy opt:",
-#       scf_dft_energy(scf_basis_from_dqc(testdict["CH4"], testdict["sys_CH4"]["bpacker"]),"CH4"))
-#
-# sys3 = system_ase(basis, "SiH4").get_tot_energy_scf
-# sys3_ref = system_ase(basis_ref, "SiH4").get_tot_energy_scf
-# print(f"{elements[2]}:\n\tenergy {basis}: {sys3}\n\tenergy {basis_ref}: {sys3_ref}\n\t energy opt:",
-#       scf_dft_energy(scf_basis_from_dqc(testdict["SiH4"], testdict["sys_SiH4"]["bpacker"]),"SiH4"))
-#
-# sys4 = system_ase(basis, "N2O").get_tot_energy_scf
-# sys4_ref = system_ase(basis_ref, "N2O").get_tot_energy_scf
-# print(f"{elements[3]}:\n\tenergy {basis}: {sys4}\n\tenergy {basis_ref}: {sys4_ref}\n\t energy opt:",
-#       scf_dft_energy(scf_basis_from_dqc(testdict["N2O"], testdict["sys_N2O"]["bpacker"]),"N2O"))
-#
-# sys5 = system_ase(basis, "methylenecyclopropane").get_tot_energy_scf
-# sys5_ref = system_ase(basis_ref, "methylenecyclopropane").get_tot_energy_scf
-# print(f"{elements[4]}:\n\tenergy {basis}: {sys5}\n\tenergy {basis_ref}: {sys5_ref}\n\tenergy opt:",
-#       scf_dft_energy(scf_basis_from_dqc(testdict["methylenecyclopropane"], testdict["sys_methylenecyclopropane"]["bpacker"]),"methylenecyclopropane"))
