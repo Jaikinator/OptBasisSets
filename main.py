@@ -25,69 +25,6 @@ def cuda_device_checker(memory  = False):
 
 torch.set_printoptions(linewidth = 200)
 
-########################################################################################################################
-# first create class to configure optb
-########################################################################################################################
-
-def scf_basis_from_dqc(bparams, bpacker ):
-    """
-    creates a pyscf type basis dict out of an dqc basis input
-     :param bparams: torch.tensor with coeff of basis set
-    :param bpacker: xitorch._core.packer.Packer object to create the CGTOBasis out of the bparams
-    :return: dict where each element gots his own basis arr
-    """
-    basis = bpacker.construct_from_tensor(bparams)
-    def wfnormalize_(CGTOB):
-        """
-        Normalize coefficients from the unnormalized state from dqc
-        :param CGTOB:
-        :return:
-        """
-        # wavefunction normalization
-        # the normalization is obtained from CINTgto_norm from
-        # libcint/src/misc.c, or
-        # https://github.com/sunqm/libcint/blob/b8594f1d27c3dad9034984a2a5befb9d607d4932/src/misc.c#L80
-
-        # Please note that the square of normalized wavefunctions do not integrate
-        # to 1, but e.g. for s: 4*pi, p: (4*pi/3)
-
-        # if the basis has been normalized before, then do nothing
-
-        # if self.normalized:
-        #     return self
-
-        coeffs = CGTOB.coeffs
-
-        # normalize to have individual gaussian integral to be 1 (if coeff is 1)
-
-        coeffs = coeffs * torch.sqrt(gaussian_int(2 * CGTOB.angmom + 2, 2 * CGTOB.alphas))
-        # normalize the coefficients in the basis (because some basis such as
-        # def2-svp-jkfit is not normalized to have 1 in overlap)
-        ee = CGTOB.alphas.unsqueeze(-1) + CGTOB.alphas.unsqueeze(-2)  # (ngauss, ngauss)
-        ee = gaussian_int(2 * CGTOB.angmom + 2, ee)
-        s1 = 1 / torch.sqrt(torch.einsum("a,ab,b", coeffs, ee, coeffs))
-        coeffs = coeffs * s1
-
-        CGTOB.coeffs = coeffs
-        CGTOB.normalized = True
-        return CGTOB
-
-    bdict = {}
-
-    for el in basis:
-        arr = []
-        for CGTOB in basis[el]:
-            CGTOB =  wfnormalize_(CGTOB)
-            innerarr = [CGTOB.angmom]
-            for al,co in zip(CGTOB.alphas, CGTOB.coeffs):
-                innerarr.append([float(al), float(co)])
-            arr.append(innerarr)
-        bdict[el] = arr
-    return bdict
-
-########################################################################################################################
-# test function
-########################################################################################################################
 
 def fcn(bparams : torch.Tensor, bpacker: xitorch._core.packer.Packer, ref_basis
         , atomstruc_dqc: str, atomstruc : list, coeffM : torch.Tensor, occ_scf : torch.Tensor, num_gauss : torch.Tensor):
@@ -154,7 +91,6 @@ def scf_dft_energy(basis, atomstruc):
     return mf.energy_tot()
 
 
-
 if __name__ == "__main__":
 
 
@@ -162,12 +98,12 @@ if __name__ == "__main__":
     # configure atomic optb:
     ####################################################################################################################
 
-    # atomstruc = [['H', [0.5, 0.0, 0.0]],
-    #              ['H',  [-0.5, 0.0, 0.0]],
-    #              ['He', [0.0,0.5, 0.0 ]]]
+    atomstruc = [['H', [0.5, 0.0, 0.0]],
+                 ['H',  [-0.5, 0.0, 0.0]],
+                 ['He', [0.0,0.5, 0.0 ]]]
 
 
-    atomstruc = "CH4"
+    # atomstruc = "CH4"
 
     ####################################################################################################################
     # configure basis to optimize:
@@ -199,7 +135,7 @@ if __name__ == "__main__":
                                                                         func_dict["num_gauss"], ),step = 2e-6,method = "Adam", maxiter = 0, verbose = True)# ,method = "Adam"
 
     # testsystem = system_ase(basis, atomstruc)
-    testsystem = Mole_ase(basis,atomstruc)
+    testsystem = Mole(basis,atomstruc)
 
     initenergy = testsystem.SCF.get_tot_energy
 
@@ -208,45 +144,12 @@ if __name__ == "__main__":
     print(f"total energy scf with {basis_ref} as reference basis:\n",
           bsys2.SCF.get_tot_energy)
     print("energy after optimization of basis as basis set:\n",
-          scf_dft_energy(scf_basis_from_dqc(min_bparams, func_dict["bpacker"]), atomstruc))
+          scf_dft_energy(bconv(min_bparams, func_dict["bpacker"]), atomstruc))
 
-    print("basis scf initial:", Mole_ase(basis, atomstruc).SCF.get_basis)
-    print("basis after one step:", scf_basis_from_dqc(min_bparams, func_dict["bpacker"]))
+    print("basis scf initial:", Mole(basis, atomstruc).SCF.get_basis)
+    print("basis after one step:", bconv(min_bparams, func_dict["bpacker"]))
 
     basist = func_dict["bpacker"].construct_from_tensor(min_bparams)
-
-    #print(Mole_minimizer(basis,basis_ref, atomstruc))
-    #
-    # atomzs, atomposs = dqc.parse_moldesc(system_ase(basis, atomstruc).atomstruc_dqc)
-    # mol = dqc.Mol((atomzs, atomposs), basis=basist)
-    #
-    #
-    # xcm = "GGA_X_B88 + GGA_C_LYP"
-    #
-    # qc = dqc.KS(mol, xc = xcm).run()
-    # ene = qc.energy()
-    # print("dqc ene: ", ene)
-    #
-    # mol2 = dqc.Mol((atomzs, atomposs), basis="STO-3G")
-    #
-    # qc2 = dqc.KS(mol2, xc=xcm).run()
-    # ene2 = qc2.energy()
-    # print("dqc ene STO-3G",ene2)
-    #
-    #
-    # mol3 = dqc.Mol((atomzs, atomposs), basis="cc-pvtz")
-    #
-    # qc2 = dqc.KS(mol3, xc=xcm).run()
-    # ene2 = qc2.energy()
-    # print("dqc ene cc-pvtz", ene2)
-    #
-    # print(f"{basis}: \t", func_dict["bparams"],"len: ",len(func_dict["bparams"]))
-    # # print(f"{basis_ref}:\t", func_dict["ref_basis"],"len: ",len(func_dict["ref_basis"]))
-    # print("Opt params:\t", min_bparams,"len: ",len(min_bparams))
-    #
-    #
-    #
-    #
 
 
 """    
