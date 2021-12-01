@@ -20,6 +20,7 @@ def bconv(bparams, bpacker ):
         :param CGTOB:
         :return: basis dict
         """
+
         # wavefunction normalization
         # the normalization is obtained from CINTgto_norm from
         # libcint/src/misc.c, or
@@ -34,7 +35,6 @@ def bconv(bparams, bpacker ):
         #     return self
 
         coeffs = CGTOB.coeffs
-
         # normalize to have individual gaussian integral to be 1 (if coeff is 1)
 
         coeffs = coeffs * torch.sqrt(gaussian_int(2 * CGTOB.angmom + 2, 2 * CGTOB.alphas))
@@ -46,7 +46,6 @@ def bconv(bparams, bpacker ):
         coeffs = coeffs * s1
 
         CGTOB.coeffs = coeffs
-        CGTOB.normalized = True
         return CGTOB
 
     bdict = {}

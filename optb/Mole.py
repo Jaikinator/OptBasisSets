@@ -358,7 +358,7 @@ def Mole_minimizer(basis, ref_basis, atomstruc):
 
         sys_ref = Mole_ase(ref_basis, atomstruc, requires_grad=False)
     else:
-        systopt = MoleDQC(basis, atomstruc) #optb to optimize
+        systopt = Mole(basis, atomstruc, scf = False) #optb to optimize
 
         sys_ref = Mole(ref_basis, atomstruc, requires_grad = False)
 

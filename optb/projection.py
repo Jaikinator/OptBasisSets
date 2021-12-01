@@ -1,10 +1,13 @@
-import dqc
+"""
+This file includes all the needed functions to calculate the projection between two given
+Basis Sets.
+"""
+
+
 import torch
+from dqc.hamilton.intor import  overlap, LibcintWrapper
 from dqc.utils.datastruct import AtomCGTOBasis
-import dqc.hamilton.intor as intor
 from dqc.api.parser import parse_moldesc
-
-
 
 def blister(atomstruc : list, basis : dict, refbasis :dict):
     """
@@ -64,10 +67,10 @@ def crossoverlap(atomstruc : str, basis : list):
     atompos = torch.cat([atompos, atompos])
     atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
     # creats an list with AtomCGTOBasis object for each atom (including  all previous informations in one array element)
-    wrap = dqc.hamilton.intor.LibcintWrapper(
+    wrap = LibcintWrapper(
         atombases)  # creates an wrapper object to pass informations on lower functions
 
-    return intor.overlap(wrap)
+    return overlap(wrap)
 
 def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Tensor):
     """

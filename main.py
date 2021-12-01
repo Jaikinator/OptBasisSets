@@ -85,9 +85,9 @@ def scf_dft_energy(basis, atomstruc):
         mol.spin = 1
         mol.build()
 
-    mf = scf.RKS(mol)
+    mf = scf.RHF(mol)
     mf.kernel()
-    mf.xc = 'GGA_X_B88 + GGA_C_LYP'
+    mf.xc = 'B3LYP'
     return mf.energy_tot()
 
 
@@ -98,12 +98,12 @@ if __name__ == "__main__":
     # configure atomic optb:
     ####################################################################################################################
 
-    atomstruc = [['H', [0.5, 0.0, 0.0]],
-                 ['H',  [-0.5, 0.0, 0.0]],
-                 ['He', [0.0,0.5, 0.0 ]]]
+    # atomstruc = [['H', [0.5, 0.0, 0.0]],
+    #              ['H',  [-0.5, 0.0, 0.0]],
+    #              ['He', [0.0,0.5, 0.0 ]]]
 
 
-    # atomstruc = "CH4"
+    atomstruc = "CH4"
 
     ####################################################################################################################
     # configure basis to optimize:
@@ -132,10 +132,10 @@ if __name__ == "__main__":
                                                                         func_dict["atomstruc"],
                                                                         func_dict["coeffM"],
                                                                         func_dict["occ_scf"],
-                                                                        func_dict["num_gauss"], ),step = 2e-6,method = "Adam", maxiter = 0, verbose = True)# ,method = "Adam"
+                                                                        func_dict["num_gauss"], ),step = 2e-6,method = "Adam", maxiter = 1, verbose = True)# ,method = "Adam"
 
     # testsystem = system_ase(basis, atomstruc)
-    testsystem = Mole(basis,atomstruc)
+    testsystem = Mole_ase(basis,atomstruc)
 
     initenergy = testsystem.SCF.get_tot_energy
 
@@ -146,8 +146,8 @@ if __name__ == "__main__":
     print("energy after optimization of basis as basis set:\n",
           scf_dft_energy(bconv(min_bparams, func_dict["bpacker"]), atomstruc))
 
-    print("basis scf initial:", Mole(basis, atomstruc).SCF.get_basis)
-    print("basis after one step:", bconv(min_bparams, func_dict["bpacker"]))
+    print("basis scf initial:   ", testsystem.SCF.get_basis["C"])
+    print("basis after one step:", bconv(min_bparams, func_dict["bpacker"])["C"])
 
     basist = func_dict["bpacker"].construct_from_tensor(min_bparams)
 
