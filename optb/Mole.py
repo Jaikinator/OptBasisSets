@@ -464,8 +464,5 @@ def Mole_minimizer(basis, ref_basis, atomstruc):
 
     return systopt, sys_ref, system_dict(systopt, sys_ref)
 
-from data.w417.systems import Database
-
-print(Database("nonMR"))
 
 
