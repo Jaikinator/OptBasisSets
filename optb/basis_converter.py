@@ -6,7 +6,7 @@ import torch
 from dqc.utils.misc import gaussian_int
 
 
-def Bconv(bparams, bpacker ):
+def bconv(bparams, bpacker ):
     """
     creates a pyscf type basis dict out of an given dqc type basis input
     :param bparams: torch.tensor with coeff of basis set
@@ -18,7 +18,7 @@ def Bconv(bparams, bpacker ):
         """
         Normalize coefficients from the unnormalized state from dqc
         :param CGTOB:
-        :return:
+        :return: basis dict
         """
         # wavefunction normalization
         # the normalization is obtained from CINTgto_norm from
