@@ -216,7 +216,17 @@ class MoleSCF:
 
 class MoleDQC:
     def __init__(self, basis : str, atomstruc : list, elementsarr = None , rearrange = True, requires_grad = True ):
-
+        """
+           MoleDQC provides all relevant data for the basis optimization that refers to dqc
+           :param basis: str (like: STO-3G)
+           :param atomstruc: list with all elements on their specific positions. (example below)
+                                [['H', [0.5, 0.0, 0.0]],
+                                 ['H',  [-0.5, 0.0, 0.0]],
+                                 ['He', [0.0, 0.5, 0.0]]]
+           :param elementsarr: provides information witch elements are in the system eg. H takes element number 1
+           :param rearrange: rearranges the dqc basis to be equal as one of pyscf.
+           :param requires_grad: if true gradiant can be obtained to optimize basis.
+        """
         self.basis = basis  # just str of basis
         self.atomstruc = atomstruc
         self.atomstruc_dqc = self._arr_int_conv()
@@ -282,6 +292,12 @@ class MoleDQC:
             # return basis
 
     def _rearrange_basis(self, **kwargs):
+        """
+        rearrange the sequence of dqc a basis to one that is used by pyscf.
+        This is relevant to get the same overlap between dqc and pyscf.
+        :param kwargs:
+        :return:
+        """
         basis = self._loadbasis(**kwargs)
         bout = {}
 
@@ -448,6 +464,8 @@ def Mole_minimizer(basis, ref_basis, atomstruc):
 
     return systopt, sys_ref, system_dict(systopt, sys_ref)
 
+from data.w417.systems import Database
 
+print(Database("nonMR"))
 
 
