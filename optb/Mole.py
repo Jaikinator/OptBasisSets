@@ -30,6 +30,16 @@ def _get_element_arr(atomstruc):
 
 class MoleSCF:
     def __init__(self, basis : str, atomstruc : list, elementsarr =  None):
+        """
+        MoleSCF provides all relevant data for the basis optimization that refers to pyscf
+        A mol type Object will be created as well as a restricted kohn sham
+        :param basis: str (like: STO-3G)
+        :param atomstruc: list with all elements on their specific positions. (example below)
+                            [['H', [0.5, 0.0, 0.0]],
+                             ['H',  [-0.5, 0.0, 0.0]],
+                             ['He', [0.0, 0.5, 0.0]]]
+        :param elementsarr: provides information witch elements are in the system eg. H takes element number 1
+        """
 
         self.basis = basis  # just str of basis
         self.atomstruc = atomstruc
@@ -61,9 +71,9 @@ class MoleSCF:
 
         folderpath = os.path.realpath("data/NWChemBasis")
 
-        if os.path.exists(folderpath) == False:
+        if os.path.exists(folderpath) == False: # check if NWChemBasis or data folder exist. if not it will be created
             warnings.warn("No NWChemBasis or data folder exist it will be created.")
-            if not os.path.exists("data"):
+            if not os.path.exists("data"): # check if data folder exist
                 warnings.warn("data folder will be created")
                 os.mkdir("data")
             os.mkdir(os.path.abspath(folderpath))
@@ -72,13 +82,18 @@ class MoleSCF:
 
         bdict = {}
 
-        for i in range(len(self.elements)):
+        for i in range(len(self.elements)): # assign the basis to the associated elements
             if isinstance(self.basis,str):
                 basisname = self.basis
             else:
                 basisname = self.basis[ el_dict[self.elements[i]]]
+                # takes care if basis is not str
+                # instead it can be dict
+                # not working right now
 
-            if os.path.exists(f"{folderpath}/{basisname}.{self.elements[i]}.nw") == False:
+            if not os.path.exists(f"{folderpath}/{basisname}.{self.elements[i]}.nw"):
+                # check if basis file already exists
+                # if False it will be downloaded and stored to NWChemBasis folder
                 print(f"No basis {self.basis} found for { el_dict[self.elements[i]]}."
                       f" Try to get it from https://www.basissetexchange.org/")
                 basis = bse.get_basis(self.basis, elements=[ el_dict[self.elements[i]]], fmt="nwchem")
@@ -88,18 +103,14 @@ class MoleSCF:
                 print(f"Downloaded to {os.path.abspath(fname)}")
 
             file = open(f"{folderpath}/{basisname}.{self.elements[i]}.nw").read()
-            bdict[str( el_dict[self.elements[i]])] = gto.basis.parse(file,optimize=False)
+            bdict[str( el_dict[self.elements[i]])] = gto.basis.parse(file, optimize=False)
         return bdict
 
     def _create_Mol(self,**kwargs):
         """
+        pyscf mol object will be created.
         be aware here just basis as a string works
         :return: mol object
-        """
-
-        """
-        basis path from 
-        ~/anaconda3/envs/OptimizeBasisFunc/lib/python3.8/site-packages/pyscf/gto/basis
         """
         mol = gto.Mole()
         mol.atom = self.atomstruc
@@ -116,6 +127,7 @@ class MoleSCF:
             mol.symmetry = False
         mol.output = 'scf.out'
 
+        # I don't know what I' am doing here:
         try:
             mol.spin = 0
             return mol.build()
@@ -124,6 +136,11 @@ class MoleSCF:
             return mol.build()
 
     def dft_calc(self ):
+        """
+        runs the restricted kohn sham using the  b3lyp hybrid functional
+        you can get all informations of the solved system by using the particular pyscf functions.
+        :return: pyscf.dft.rks.RKS object
+        """
         mf = scf.RKS(self.mol)
         mf.kernel()
         mf.xc = self.xc
@@ -149,10 +166,16 @@ class MoleSCF:
             self._molbasis = var
     @property
     def get_basis(self):
+        """
+        :return: dict of all basis for the particular elements
+        """
         return self._get_molbasis_fparser()
 
     @property
     def get_coeff(self):
+        """
+        :return: torch.Tensor, coefficient matrix from the dft calculation.
+        """
         return torch.tensor(self.dft.mo_coeff)
 
     @property
@@ -164,18 +187,32 @@ class MoleSCF:
 
     @property
     def get_mol(self):
+        """
+        :return: pyscf mole object
+        """
         return self._create_Mol()
 
     @property
     def get_occ(self):
+        """
+        :return: occupied orbitals
+        """
         return torch.tensor(self.dft.get_occ())
 
     @property
     def get_ovlp(self):
+        """
+        :return: overlap matrix of a given mol object
+        """
         return torch.Tensor(self.mol.get_ovlp()).type(torch.float64)
+
     @property
     def get_tot_energy(self):
+        """
+        :return: float: total energy of the system calculated throw the dft calculation.
+        """
         return self.dft.energy_tot()
+
 
 class MoleDQC:
     def __init__(self, basis : str, atomstruc : list, elementsarr = None , rearrange = True, requires_grad = True ):
