@@ -439,7 +439,7 @@ class MoleDB:
            mole = Mole_ase(basis, self.atomstrucstr, scf,requires_grad, rearrange)
            self.molecule = mole
 
-
+       self.atomstruc = mole.atomstruc
 
        if scf:
            self.SCF = mole.SCF
@@ -499,6 +499,7 @@ class Mole:
         elif type(atomstruc) is str:
             mole = MoleDB(basis, atomstruc,db ,scf, requires_grad , rearrange)
             self.molecule = mole.molecule
+            self.atomstruc = mole.atomstruc
             if scf:
                 self.SCF = mole.SCF
 
