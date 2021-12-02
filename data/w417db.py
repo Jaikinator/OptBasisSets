@@ -1429,3 +1429,25 @@ w417db = {
                        'charge': 0,
                        'energy': -748936.5779798,
                        'mult': 1}}
+
+"""
+Create little interface to access Database
+"""
+
+class W417:
+    def __init__(self,molecule : str):
+        if molecule in w417db:
+            self.molecule = w417db[molecule]
+        else:
+            raise ImportError("No file in Database")
+    @property
+    def atom_pos(self):
+        return self.molecule["atompos"]
+    @property
+    def energy(self):
+        return self.molecule["energy"]
+    @property
+    def charge(self):
+        return self.molecule["energy"]
+    def mult(self):
+        return self.molecule["mult"]
