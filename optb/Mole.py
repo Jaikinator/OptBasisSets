@@ -72,7 +72,7 @@ class MoleSCF:
         :return: mol.basis object
         """
 
-        folderpath = os.path.realpath("data/NWChemBasis")
+        folderpath = os.path.realpath("../data/NWChemBasis")
 
         if os.path.exists(folderpath) == False: # check if NWChemBasis or data folder exist. if not it will be created
             warnings.warn("No NWChemBasis or data folder exist it will be created.")
@@ -215,7 +215,6 @@ class MoleSCF:
         :return: float: total energy of the system calculated throw the dft calculation.
         """
         return self.dft.energy_tot()
-
 
 class MoleDQC:
     def __init__(self, basis : str, atomstruc : list, elementsarr = None , rearrange = True, requires_grad = True ):
