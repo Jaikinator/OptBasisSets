@@ -1,6 +1,7 @@
 """
 File that stores class Obj to define a Molecular System
 """
+import dataclasses
 
 from pyscf import gto, scf
 import dqc
@@ -11,7 +12,9 @@ import dqc.hamilton.intor as intor
 from dqc.api.parser import parse_moldesc
 import warnings #for warnings
 import os
-import basis_set_exchange as bse # basist set exchange libary
+import basis_set_exchange as bse # basest set exchange library
+from data.w417db import *
+from data.avdata import *
 
 #get atom pos:
 from ase.build import molecule
@@ -362,34 +365,6 @@ class MoleDQC:
         """
         return self._get_ovlp()
 
-class Mole:
-    def __init__(self, basis :str, atomstruc : list, scf = True, requires_grad = True, rearrange = True ):
-        """
-        class to define the systems to optimize.
-        Therefore, it creates a MoleSCF and a MoleDQC Object.
-        :param element: array, str or number of the element in the periodic table
-        :param basis: name of the basis to optimize if you want to use multiple basis do something like
-                      basis = ["basis_1", "basis_2",...,"basis_N"] the array has to be the same length as atomstruc
-        :param atomstruc: structure of the optb input like
-                            array([[element, [position]],
-                                  [element , [position]],
-                                  ...])
-                            therefore position has to be the length 3 with float number for each axis position in
-                            cartesian space. For example pos = [1.0, 1.0, 1.0]
-        :param scf: if True you get the optb as dqc as well as scf optb.
-        :param requires_grad: support gradient of torch.Tensor
-        :param rearrange: if True the dqc basis will be rearranged to match the basis read by scf
-        """
-        self.atomstruc = atomstruc
-
-        elementsarr = _get_element_arr(atomstruc)
-
-        if scf:
-            self.SCF = MoleSCF(basis, self.atomstruc, elementsarr)
-
-        self.DQC = MoleDQC(basis, self.atomstruc,elementsarr , requires_grad , rearrange)
-
-
 class Mole_ase:
     def __init__(self, basis :str, atomstrucstr : str, scf = True, requires_grad = False, rearrange = True ):
         """
@@ -397,7 +372,7 @@ class Mole_ase:
         :param atomstrucstr: str like H2O, CH4 etc.
 
         """
-        self.atomstrucstr = atomstrucstr
+        self.molecule = molecule(atomstrucstr)
         self.atomstruc = self._create_atomstruc_from_ase()
 
         elementsarr = _get_element_arr(self.atomstruc)
@@ -412,13 +387,104 @@ class Mole_ase:
         :param atomstruc: molecule string
         :return: array like [element, [x,y,z], ...]
         """
-        chem_symb = molecule(self.atomstrucstr).get_chemical_symbols()
-        atompos =  molecule(self.atomstrucstr).get_positions()
+        chem_symb = self.molecule.get_chemical_symbols()
+        atompos =  self.molecule.get_positions()
 
         arr = []
         for i in range(len(chem_symb)):
             arr.append([chem_symb[i], list(atompos[i])])
         return arr
+
+class Mole_w417:
+    def __init__(self, basis :str, atomstrucstr : str, scf = True, requires_grad = False, rearrange = True ):
+        """
+        Same as Mole just gets the atom-structure (atom positions, charge, multiplicity) from the ase g2 databases.
+        :param atomstrucstr: str like H2O, CH4 etc.
+
+        """
+        self.molecule = W417(atomstrucstr)
+        self.atomstruc = self.molecule.atom_pos
+
+        elementsarr = _get_element_arr(self.atomstruc)
+
+        if scf:
+            self.SCF = MoleSCF(basis, self.atomstruc, elementsarr)
+        self.DQC = MoleDQC(basis, self.atomstruc, elementsarr, requires_grad, rearrange)
+
+class MoleDB:
+    def __init__(self, basis :str, atomstrucstr : str, db = None, scf = True, requires_grad = False, rearrange = True):
+
+       self.atomstrucstr = atomstrucstr
+       self.db = db
+       print(db)
+       db = self._check_Mole_from_DB()
+       print(atomstrucstr,db)
+       if db == "w4-17":
+           mole = Mole_w417(basis, self.atomstrucstr, scf,requires_grad, rearrange)
+       elif db == "g2":
+           mole = Mole_ase(basis, self.atomstrucstr, scf,requires_grad, rearrange)
+
+       if scf:
+           self.SCF = mole.SCF
+
+       self.DQC = mole.DQC
+
+    def _check_Mole_from_DB(self):
+        """
+        Try to get atomic positions from database.
+        Therefore check in which Database the module is.
+        :param atomstrucstr: str like H2O, CH4 etc.
+        :return class object
+        """
+        if self.db == None:
+            if self.atomstrucstr in elw417:
+                return "w4-17"
+            elif self.atomstrucstr in elg2:
+                print("pls notice that you get Data from the less accurate g2 Database.")
+                return "g2"
+            else:
+                raise ImportError("Molecule not found in g2 or w4-17 Database")
+        elif self.db == "w4-17":
+            return "w4-17"
+        elif self.db == "g2":
+            return "w4-17"
+
+class Mole:
+    def __init__(self, basis :str, atomstruc, db = None, scf = True, requires_grad = True, rearrange = True ):
+        """
+        class to define the systems to optimize.
+        Therefore, it creates a MoleSCF and a MoleDQC Object.
+
+        :param basis: name of the basis to optimize if you want to use multiple basis do something like
+                      basis = ["basis_1", "basis_2",...,"basis_N"] the array has to be the same length as atomstruc
+        :param atomstruc: structure of the optb input like
+                          array or str to set or load atom positions from array or database
+                            array([[element, [position]],
+                                  [element , [position]],
+                                  ...])
+                            therefore position has to be the length 3 with float number for each axis position in
+                            cartesian space. For example pos = [1.0, 1.0, 1.0]
+        :param db: select which database should be loaded
+        :param scf: if True you get the optb as dqc as well as scf optb.
+        :param requires_grad: support gradient of torch.Tensor
+        :param rearrange: if True the dqc basis will be rearranged to match the basis read by scf
+        """
+
+        if type(atomstruc) is list:
+            self.atomstruc = atomstruc
+
+            elementsarr = _get_element_arr(atomstruc)
+
+            if scf:
+                self.SCF = MoleSCF(basis, self.atomstruc, elementsarr)
+
+            self.DQC = MoleDQC(basis, self.atomstruc,elementsarr , requires_grad , rearrange)
+        elif type(atomstruc) is str:
+            mole = MoleDB(basis, atomstruc,db ,scf, requires_grad , rearrange)
+            if scf:
+                self.SCF = mole.SCF
+
+            self.DQC = mole.DQC
 
 
 def Mole_minimizer(basis, ref_basis, atomstruc):
