@@ -394,6 +394,20 @@ class Mole_ase:
             arr.append([chem_symb[i], list(atompos[i])])
         return arr
 
+    @property
+    def get_charge(self):
+        """
+        :return: molecular charge
+        """
+        return sum(self.molecule.get_initial_charges())
+
+    @property
+    def get_mult(self):
+        """
+        :return: multiplicity
+        """
+        return sum(self.molecule.get_initial_magnetic_moments())+1
+
 class Mole_w417:
     def __init__(self, basis :str, atomstrucstr : str, scf = True, requires_grad = False, rearrange = True ):
         """
@@ -415,13 +429,17 @@ class MoleDB:
 
        self.atomstrucstr = atomstrucstr
        self.db = db
-       print(db)
+
        db = self._check_Mole_from_DB()
-       print(atomstrucstr,db)
+
        if db == "w4-17":
            mole = Mole_w417(basis, self.atomstrucstr, scf,requires_grad, rearrange)
+           self.molecule = mole.molecule
        elif db == "g2":
            mole = Mole_ase(basis, self.atomstrucstr, scf,requires_grad, rearrange)
+           self.molecule = mole
+
+
 
        if scf:
            self.SCF = mole.SCF
@@ -480,6 +498,7 @@ class Mole:
             self.DQC = MoleDQC(basis, self.atomstruc,elementsarr , requires_grad , rearrange)
         elif type(atomstruc) is str:
             mole = MoleDB(basis, atomstruc,db ,scf, requires_grad , rearrange)
+            self.molecule = mole.molecule
             if scf:
                 self.SCF = mole.SCF
 
@@ -493,14 +512,11 @@ def Mole_minimizer(basis, ref_basis, atomstruc):
     :param atomstruc: molecular structure (atom position)
     :return: dict
     """
-    if type(atomstruc) is str:
-        systopt = Mole_ase(basis, atomstruc, scf = False)  # optb to optimize
 
-        sys_ref = Mole_ase(ref_basis, atomstruc, requires_grad=False)
-    else:
-        systopt = Mole(basis, atomstruc, scf = False) #optb to optimize
+    systopt = Mole(basis, atomstruc, scf = False)  # optb to optimize
 
-        sys_ref = Mole(ref_basis, atomstruc, requires_grad = False)
+    sys_ref = Mole(ref_basis, atomstruc, requires_grad=False)
+
 
     def _num_gauss(system, ref_system):
         """
