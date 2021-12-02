@@ -295,8 +295,8 @@ class MoleDQC:
         """
         rearrange the sequence of dqc a basis to one that is used by pyscf.
         This is relevant to get the same overlap between dqc and pyscf.
-        :param kwargs:
-        :return:
+        :param kwargs: kwargs for load basis
+        :return: dict
         """
         basis = self._loadbasis(**kwargs)
         bout = {}
@@ -329,7 +329,9 @@ class MoleDQC:
         return  bout
 
     def _get_ovlp(self):
-
+        """
+        :return: overlap matrix calc by dqc
+        """
         elem = [self.atomstruc[i][0] for i in range(len(self.atomstruc))]
         basis = [self.lbasis[elem[i]] for i in range(len(elem))]
         atomzs, atompos = parse_moldesc(self.atomstruc_dqc)
@@ -341,20 +343,30 @@ class MoleDQC:
 
     @property
     def get_atomstruc(self):
+        """
+        :return: get atom-structure in dqc format
+        """
         return self.atomstruc_dqc
 
     @property
     def get_basis(self):
+        """
+        :return: get basis in dqc format
+        """
         return self.lbasis
 
     @property
     def get_ovlp(self):
+        """
+        :return: overlap matrix calc by dqc
+        """
         return self._get_ovlp()
 
 class Mole:
     def __init__(self, basis :str, atomstruc : list, scf = True, requires_grad = True, rearrange = True ):
         """
         class to define the systems to optimize.
+        Therefore, it creates a MoleSCF and a MoleDQC Object.
         :param element: array, str or number of the element in the periodic table
         :param basis: name of the basis to optimize if you want to use multiple basis do something like
                       basis = ["basis_1", "basis_2",...,"basis_N"] the array has to be the same length as atomstruc
@@ -377,10 +389,14 @@ class Mole:
 
         self.DQC = MoleDQC(basis, self.atomstruc,elementsarr , requires_grad , rearrange)
 
+
 class Mole_ase:
-
     def __init__(self, basis :str, atomstrucstr : str, scf = True, requires_grad = False, rearrange = True ):
+        """
+        Same as Mole just gets the atom-structure (atom positions, charge, multiplicity) from the ase g2 databases.
+        :param atomstrucstr: str like H2O, CH4 etc.
 
+        """
         self.atomstrucstr = atomstrucstr
         self.atomstruc = self._create_atomstruc_from_ase()
 
@@ -406,6 +422,13 @@ class Mole_ase:
 
 
 def Mole_minimizer(basis, ref_basis, atomstruc):
+    """
+    Function that creates a dict with all relevant information to pass throw to the dqc optimizer
+    :param basis: the basis you want to optimize
+    :param ref_basis: reference basis
+    :param atomstruc: molecular structure (atom position)
+    :return: dict
+    """
     if type(atomstruc) is str:
         systopt = Mole_ase(basis, atomstruc, scf = False)  # optb to optimize
 
@@ -441,7 +464,7 @@ def Mole_minimizer(basis, ref_basis, atomstruc):
         """
         def dictionary to input in fcn
         :param ref_system: class obj for the reference basis
-        :return:
+        :return: dict
         """
 
         basis = system.DQC.lbasis

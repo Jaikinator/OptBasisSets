@@ -27,21 +27,12 @@ def blister(atomstruc : list, basis : dict, refbasis :dict):
 def cross_selcet(crossmat : torch.Tensor, num_gauss : torch.Tensor):
     """
     select the cross overlap matrix part.
-    The corssoverlap is defined by the overlap between to basis sets.
-    For example is b1 the array of the first basis set which will be optimized and
-    b2 the array of the second basis set which is the reference basis
-    Then is the crossoveralp S:
         S  = [b1*b1 , b1*b2] = [S_11 , S_12]
              [b2*b1 , b2*b2]   [S_21 , S_22]
-    you can choose between:
-        - basis overlap (S_11)
-        - restbasis overlap (S_22)
-        - horizontal crossoverlap (S_12)
-        - vertical crossoverlap (S_21)
     :param crossmat: crossoverlap mat
     :param num_gauss: number of gaussians in two basis
     :return: torch.tensor
-    returns the cross overlap matrix between the new and the old basis func
+    returns the cross overlap matrices between the new and the old basis func
     """
 
     S_11 = crossmat[0:num_gauss[0],0:num_gauss[0]]
@@ -51,7 +42,19 @@ def cross_selcet(crossmat : torch.Tensor, num_gauss : torch.Tensor):
     return S_11, S_12, S_21, S_22
 
 def crossoverlap(atomstruc : str, basis : list):
-
+    """
+    calculate the cross overlap matrix between to basis functions.
+    The corssoverlap is defined by the overlap between to basis sets.
+    For example is b1 the array of the first basis set which will be optimized and
+    b2 the array of the second basis set which is the reference basis
+    Then is the crossoveralp S:
+        S  = [b1*b1 , b1*b2] = [S_11 , S_12]
+             [b2*b1 , b2*b2]   [S_21 , S_22]
+    :param atomstruc: molecular structure in dqc format
+    :param basis: list of basis sets eg. [b1, b2] where b1 is the basis that is going to be optimized and
+                  b2 is the reference basis.
+    :return: torch.Tensor shape (len(b1)+len(b2)) x (len(b1)+len(b2))
+    """
     # change normalization state so that it will be normalized by AtomCGTOBasis again
     # change_norm_state(basis)
 
