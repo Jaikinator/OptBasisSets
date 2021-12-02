@@ -72,7 +72,7 @@ class MoleSCF:
         :return: mol.basis object
         """
 
-        folderpath = os.path.realpath("../data/NWChemBasis")
+        folderpath = os.path.realpath("data/NWChemBasis")
 
         if os.path.exists(folderpath) == False: # check if NWChemBasis or data folder exist. if not it will be created
             warnings.warn("No NWChemBasis or data folder exist it will be created.")
