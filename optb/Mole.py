@@ -485,7 +485,6 @@ class Mole:
 
             self.DQC = mole.DQC
 
-
 def Mole_minimizer(basis, ref_basis, atomstruc):
     """
     Function that creates a dict with all relevant information to pass throw to the dqc optimizer
