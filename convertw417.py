@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 
-df = pd.read_csv("/home/jacob/PycharmProjects/OptBasisSets/data/w417/nonMR.dat",delimiter=" ",names=["mol", "charge", "mult"])
+df = pd.read_csv("/home/jacob/PycharmProjects/OptBasisSets/w417/nonMR.dat",delimiter=" ",names=["mol", "charge", "mult"])
 
 w417 = {}
 
@@ -12,7 +12,7 @@ index = df.index
 
 
 for molecule in df["mol"]:
-        file = open(f"data/w417/xyz/{molecule}.xyz")
+        file = open(f"w417/xyz/{molecule}.xyz")
         ind = index[df["mol"] == molecule] # index of the specific molecule in dataframe
 
         line = file.readline()
@@ -40,7 +40,10 @@ for molecule in df["mol"]:
         w417[molecule]["atompos"] = atompos
 
 import pprint
-pprint.pprint(w417)
+#pprint.pprint(w417)
 
+
+from ase.collections import g2
+pprint.pprint(g2.names)
 # print(f.split())
 #dtype=["S2", float, float, float]
