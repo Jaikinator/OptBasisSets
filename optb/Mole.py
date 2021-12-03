@@ -76,9 +76,6 @@ class MoleSCF:
 
         if os.path.exists(folderpath) == False:  # check if NWChemBasis or data folder exist. if not it will be created
             warnings.warn("No NWChemBasis or data folder exist it will be created.")
-            if not os.path.exists("data"):  # check if data folder exist
-                warnings.warn("data folder will be created")
-                os.mkdir("data")
             os.mkdir(os.path.abspath(folderpath))
             fullpath = os.path.abspath(folderpath)
             print(f"NWChemBasis folder is created to {fullpath}")
@@ -100,9 +97,11 @@ class MoleSCF:
                 print(f"No basis {self.basis} found for {el_dict[self.elements[i]]}."
                       f" Try to get it from https://www.basissetexchange.org/")
                 basis = bse.get_basis(self.basis, elements=[el_dict[self.elements[i]]], fmt="nwchem")
+                print( "Hi",bse.get_basis(self.basis, elements=[el_dict[self.elements[i]]], fmt="nwchem"))
                 fname = f"{folderpath}/{basisname}.{self.elements[i]}.nw"
                 with open(fname, "w") as f:
                     f.write(basis)
+                f.close()
                 print(f"Downloaded to {os.path.abspath(fname)}")
 
             file = open(f"{folderpath}/{basisname}.{self.elements[i]}.nw").read()
@@ -145,8 +144,8 @@ class MoleSCF:
         :return: pyscf.dft.rks.RKS object
         """
         mf = scf.RKS(self.mol)
-        mf.kernel()
         mf.xc = self.xc
+        mf.kernel()
         return mf
 
     @property
@@ -521,7 +520,7 @@ def Mole_minimizer(basis, ref_basis, atomstruc):
     :return: dict
     """
 
-    systopt = Mole(basis, atomstruc, scf=False)  # optb to optimize
+    systopt = Mole(basis, atomstruc, scf = False)  # optb to optimize
 
     sys_ref = Mole(ref_basis, atomstruc, requires_grad=False)
 
