@@ -50,7 +50,7 @@ def crossoverlap(atomstruc : str, basis : list):
     Then is the crossoveralp S:
         S  = [b1*b1 , b1*b2] = [S_11 , S_12]
              [b2*b1 , b2*b2]   [S_21 , S_22]
-    :param atomstruc: molecular structure in dqc format
+    :if not self.normalized:param atomstruc: molecular structure in dqc format
     :param basis: list of basis sets eg. [b1, b2] where b1 is the basis that is going to be optimized and
                   b2 is the reference basis.
     :return: torch.Tensor shape (len(b1)+len(b2)) x (len(b1)+len(b2))
@@ -69,10 +69,10 @@ def crossoverlap(atomstruc : str, basis : list):
     atomzs = torch.cat([atomzs, atomzs])
     atompos = torch.cat([atompos, atompos])
     atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
+
     # creates a list with AtomCGTOBasis object for each atom (including  all previous information in one array element)
     wrap = LibcintWrapper(
         atombases)  # creates a wrapper object to pass information on lower functions
-
     return overlap(wrap)
 
 def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Tensor):
