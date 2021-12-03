@@ -31,7 +31,7 @@ def cross_selcet(crossmat : torch.Tensor, num_gauss : torch.Tensor):
              [b2*b1 , b2*b2]   [S_21 , S_22]
     :param crossmat: crossoverlap mat
     :param num_gauss: number of gaussians in two basis
-    :return: torch.tensor
+    :return: torch.Tensor
     returns the cross overlap matrices between the new and the old basis func
     """
 
@@ -69,9 +69,9 @@ def crossoverlap(atomstruc : str, basis : list):
     atomzs = torch.cat([atomzs, atomzs])
     atompos = torch.cat([atompos, atompos])
     atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
-    # creats an list with AtomCGTOBasis object for each atom (including  all previous informations in one array element)
+    # creates a list with AtomCGTOBasis object for each atom (including  all previous information in one array element)
     wrap = LibcintWrapper(
-        atombases)  # creates an wrapper object to pass informations on lower functions
+        atombases)  # creates a wrapper object to pass information on lower functions
 
     return overlap(wrap)
 

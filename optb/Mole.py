@@ -1,7 +1,6 @@
 """
 File that stores class Obj to define a Molecular System
 """
-import dataclasses
 
 from pyscf import gto, scf
 import dqc
@@ -10,16 +9,17 @@ import xitorch as xt
 from dqc.utils.datastruct import AtomCGTOBasis
 import dqc.hamilton.intor as intor
 from dqc.api.parser import parse_moldesc
-import warnings #for warnings
+import warnings  # for warnings
 import os
-import basis_set_exchange as bse # basest set exchange library
+import basis_set_exchange as bse  # basest set exchange library
 from data.w417db import *
 from data.avdata import *
 
-#get atom pos:
+# get atom pos:
 from ase.build import molecule
 
-from optb.params_periodic_system import el_dict #contains dict with all numbers and Symbols of the periodic table
+from optb.params_periodic_system import el_dict  # contains dict with all numbers and Symbols of the periodic table
+
 
 def _get_element_arr(atomstruc):
     """
@@ -31,8 +31,9 @@ def _get_element_arr(atomstruc):
             elements_arr[i] = el_dict[elements_arr[i]]
     return elements_arr
 
+
 class MoleSCF:
-    def __init__(self, basis : str, atomstruc : list, elementsarr =  None):
+    def __init__(self, basis: str, atomstruc: list, elementsarr=None):
         """
         MoleSCF provides all relevant data for the basis optimization that refers to pyscf
         A mol type Object will be created as well as a restricted kohn sham
@@ -63,7 +64,6 @@ class MoleSCF:
         self.mol = self._create_Mol()
         self.dft = self.dft_calc()
 
-
     def _get_molbasis_fparser(self):
         """
         function to override scf basis function with data from:
@@ -74,9 +74,9 @@ class MoleSCF:
 
         folderpath = os.path.realpath("data/NWChemBasis")
 
-        if os.path.exists(folderpath) == False: # check if NWChemBasis or data folder exist. if not it will be created
+        if os.path.exists(folderpath) == False:  # check if NWChemBasis or data folder exist. if not it will be created
             warnings.warn("No NWChemBasis or data folder exist it will be created.")
-            if not os.path.exists("data"): # check if data folder exist
+            if not os.path.exists("data"):  # check if data folder exist
                 warnings.warn("data folder will be created")
                 os.mkdir("data")
             os.mkdir(os.path.abspath(folderpath))
@@ -85,11 +85,11 @@ class MoleSCF:
 
         bdict = {}
 
-        for i in range(len(self.elements)): # assign the basis to the associated elements
-            if isinstance(self.basis,str):
+        for i in range(len(self.elements)):  # assign the basis to the associated elements
+            if isinstance(self.basis, str):
                 basisname = self.basis
             else:
-                basisname = self.basis[ el_dict[self.elements[i]]]
+                basisname = self.basis[el_dict[self.elements[i]]]
                 # takes care if basis is not str
                 # instead it can be dict
                 # not working right now
@@ -97,19 +97,19 @@ class MoleSCF:
             if not os.path.exists(f"{folderpath}/{basisname}.{self.elements[i]}.nw"):
                 # check if basis file already exists
                 # if False it will be downloaded and stored to NWChemBasis folder
-                print(f"No basis {self.basis} found for { el_dict[self.elements[i]]}."
+                print(f"No basis {self.basis} found for {el_dict[self.elements[i]]}."
                       f" Try to get it from https://www.basissetexchange.org/")
-                basis = bse.get_basis(self.basis, elements=[ el_dict[self.elements[i]]], fmt="nwchem")
+                basis = bse.get_basis(self.basis, elements=[el_dict[self.elements[i]]], fmt="nwchem")
                 fname = f"{folderpath}/{basisname}.{self.elements[i]}.nw"
                 with open(fname, "w") as f:
                     f.write(basis)
                 print(f"Downloaded to {os.path.abspath(fname)}")
 
             file = open(f"{folderpath}/{basisname}.{self.elements[i]}.nw").read()
-            bdict[str( el_dict[self.elements[i]])] = gto.basis.parse(file, optimize=False)
+            bdict[str(el_dict[self.elements[i]])] = gto.basis.parse(file, optimize=False)
         return bdict
 
-    def _create_Mol(self,**kwargs):
+    def _create_Mol(self, **kwargs):
         """
         pyscf mol object will be created.
         be aware here just basis as a string works
@@ -130,7 +130,7 @@ class MoleSCF:
             mol.symmetry = False
         mol.output = 'scf.out'
 
-        # I don't know what I' am doing here:
+        # I don't know what I'am doing here:
         try:
             mol.spin = 0
             return mol.build()
@@ -138,7 +138,7 @@ class MoleSCF:
             mol.spin = 1
             return mol.build()
 
-    def dft_calc(self ):
+    def dft_calc(self):
         """
         runs the restricted kohn sham using the  b3lyp hybrid functional
         you can get all informations of the solved system by using the particular pyscf functions.
@@ -157,7 +157,7 @@ class MoleSCF:
         return self._molbasis
 
     @molbasis.setter
-    def molbasis(self, var = None):
+    def molbasis(self, var=None):
         """
         setter for molbasis
         :param var: is none basis is going to be created from NWCHem file
@@ -167,6 +167,7 @@ class MoleSCF:
             self._molbasis = self._get_molbasis_fparser()
         else:
             self._molbasis = var
+
     @property
     def get_basis(self):
         """
@@ -186,7 +187,7 @@ class MoleSCF:
         """
          coefficient- matrix of just the occupied orbitals
         """
-        return self._coeff_mat_scf[self._coeff_mat_scf>0]
+        return self.get_coeff[self.get_occ > 0]
 
     @property
     def get_mol(self):
@@ -216,8 +217,9 @@ class MoleSCF:
         """
         return self.dft.energy_tot()
 
+
 class MoleDQC:
-    def __init__(self, basis : str, atomstruc : list, elementsarr = None , rearrange = True, requires_grad = True ):
+    def __init__(self, basis: str, atomstruc: list, elementsarr=None, rearrange=True, requires_grad=True):
         """
            MoleDQC provides all relevant data for the basis optimization that refers to dqc
            :param basis: str (like: STO-3G)
@@ -242,12 +244,12 @@ class MoleDQC:
                 warnings.warn("elementsarr type is not list or None")
 
         if rearrange == False:
-            if requires_grad == False :
-                basisparam  = self._loadbasis(requires_grad=False)  # loaded dqc basis
+            if requires_grad == False:
+                basisparam = self._loadbasis(requires_grad=False)  # loaded dqc basis
             else:
-                basisparam  = self._loadbasis()
+                basisparam = self._loadbasis()
         else:
-            if requires_grad == False :
+            if requires_grad == False:
                 basisparam = self._rearrange_basis(requires_grad=False)  # loaded dqc basis
             else:
                 basisparam = self._rearrange_basis()
@@ -259,14 +261,14 @@ class MoleDQC:
         converts the atomsruc array to an str for dqc
         :return: str
         """
-        return (str(self.atomstruc).replace("["," ")
-                                .replace("]"," ")
-                                .replace("'","")
-                                .replace(" , " , ";")
-                                .replace(",","")
-                                .replace("  ", " "))
+        return (str(self.atomstruc).replace("[", " ")
+                .replace("]", " ")
+                .replace("'", "")
+                .replace(" , ", ";")
+                .replace(",", "")
+                .replace("  ", " "))
 
-    def _loadbasis(self,**kwargs):
+    def _loadbasis(self, **kwargs):
         """
         load basis from basissetexchange for the dqc module:
         https://www.basissetexchange.org/
@@ -286,7 +288,8 @@ class MoleDQC:
         elif type(self.basis) is dict:
             bdict = {}
             for i in range(len(self.basis)):
-                bdict[el_dict[self.elements[i]]] = dqc.loadbasis(f"{self.elements[i]}:{self.basis[el_dict[self.elements[i]]]}", **kwargs)
+                bdict[el_dict[self.elements[i]]] = dqc.loadbasis(
+                    f"{self.elements[i]}:{self.basis[el_dict[self.elements[i]]]}", **kwargs)
             return bdict
         else:
             print("do nothing to load basis")
@@ -313,7 +316,7 @@ class MoleDQC:
             max_angmom_arr.append(max(max_angmom_atom_arr))
 
         # now rearrange basis:
-        cf_angmon = 0 # counter for angmom for each atom
+        cf_angmon = 0  # counter for angmom for each atom
         for key in basis:
             angmomc = 0
             inner = []
@@ -328,7 +331,7 @@ class MoleDQC:
             bout[key] = inner
 
         warnings.warn("ATTENTION basis of dqc is rearranged")
-        return  bout
+        return bout
 
     def _get_ovlp(self):
         """
@@ -339,7 +342,7 @@ class MoleDQC:
         atomzs, atompos = parse_moldesc(self.atomstruc_dqc)
         atombases = [AtomCGTOBasis(atomz=atomzs[i], bases=basis[i], pos=atompos[i]) for i in range(len(basis))]
         wrap = dqc.hamilton.intor.LibcintWrapper(
-            atombases)  # creates an wrapper object to pass informations on lower functions
+            atombases)  # creates a wrapper object to pass information on lower functions
 
         return intor.overlap(wrap)
 
@@ -364,8 +367,9 @@ class MoleDQC:
         """
         return self._get_ovlp()
 
+
 class Mole_ase:
-    def __init__(self, basis :str, atomstrucstr : str, scf = True, requires_grad = False, rearrange = True ):
+    def __init__(self, basis: str, atomstrucstr: str, scf=True, requires_grad=False, rearrange=True):
         """
         Same as Mole just gets the atom-structure (atom positions, charge, multiplicity) from the ase g2 databases.
         :param atomstrucstr: str like H2O, CH4 etc.
@@ -387,7 +391,7 @@ class Mole_ase:
         :return: array like [element, [x,y,z], ...]
         """
         chem_symb = self.molecule.get_chemical_symbols()
-        atompos =  self.molecule.get_positions()
+        atompos = self.molecule.get_positions()
 
         arr = []
         for i in range(len(chem_symb)):
@@ -406,10 +410,11 @@ class Mole_ase:
         """
         :return: multiplicity
         """
-        return sum(self.molecule.get_initial_magnetic_moments())+1
+        return sum(self.molecule.get_initial_magnetic_moments()) + 1
+
 
 class Mole_w417:
-    def __init__(self, basis :str, atomstrucstr : str, scf = True, requires_grad = False, rearrange = True ):
+    def __init__(self, basis: str, atomstrucstr: str, scf=True, requires_grad=False, rearrange=True):
         """
         Same as Mole just gets the atom-structure (atom positions, charge, multiplicity) from the ase g2 databases.
         :param atomstrucstr: str like H2O, CH4 etc.
@@ -424,33 +429,33 @@ class Mole_w417:
             self.SCF = MoleSCF(basis, self.atomstruc, elementsarr)
         self.DQC = MoleDQC(basis, self.atomstruc, elementsarr, requires_grad, rearrange)
 
+
 class MoleDB:
-    def __init__(self, basis :str, atomstrucstr : str, db = None, scf = True, requires_grad = False, rearrange = True):
+    def __init__(self, basis: str, atomstrucstr: str, db=None, scf=True, requires_grad=False, rearrange=True):
 
-       self.atomstrucstr = atomstrucstr
-       self.db = db
+        self.atomstrucstr = atomstrucstr
+        self.db = db
 
-       db = self._check_Mole_from_DB()
+        db = self._check_Mole_from_DB()
 
-       if db == "w4-17":
-           mole = Mole_w417(basis, self.atomstrucstr, scf,requires_grad, rearrange)
-           self.molecule = mole.molecule
-       elif db == "g2":
-           mole = Mole_ase(basis, self.atomstrucstr, scf,requires_grad, rearrange)
-           self.molecule = mole
+        if db == "w4-17":
+            mole = Mole_w417(basis, self.atomstrucstr, scf, requires_grad, rearrange)
+            self.molecule = mole.molecule
+        elif db == "g2":
+            mole = Mole_ase(basis, self.atomstrucstr, scf, requires_grad, rearrange)
+            self.molecule = mole
 
-       self.atomstruc = mole.atomstruc
+        self.atomstruc = mole.atomstruc
 
-       if scf:
-           self.SCF = mole.SCF
+        if scf:
+            self.SCF = mole.SCF
 
-       self.DQC = mole.DQC
+        self.DQC = mole.DQC
 
     def _check_Mole_from_DB(self):
         """
         Try to get atomic positions from database.
         Therefore check in which Database the module is.
-        :param atomstrucstr: str like H2O, CH4 etc.
         :return class object
         """
         if self.db == None:
@@ -466,8 +471,9 @@ class MoleDB:
         elif self.db == "g2":
             return "w4-17"
 
+
 class Mole:
-    def __init__(self, basis :str, atomstruc, db = None, scf = True, requires_grad = True, rearrange = True ):
+    def __init__(self, basis: str, atomstruc, db=None, scf=True, requires_grad=True, rearrange=True):
         """
         class to define the systems to optimize.
         Therefore, it creates a MoleSCF and a MoleDQC Object.
@@ -495,15 +501,16 @@ class Mole:
             if scf:
                 self.SCF = MoleSCF(basis, self.atomstruc, elementsarr)
 
-            self.DQC = MoleDQC(basis, self.atomstruc,elementsarr , requires_grad , rearrange)
+            self.DQC = MoleDQC(basis, self.atomstruc, elementsarr, requires_grad, rearrange)
         elif type(atomstruc) is str:
-            mole = MoleDB(basis, atomstruc,db ,scf, requires_grad , rearrange)
+            mole = MoleDB(basis, atomstruc, db, scf, requires_grad, rearrange)
             self.molecule = mole.molecule
             self.atomstruc = mole.atomstruc
             if scf:
                 self.SCF = mole.SCF
 
             self.DQC = mole.DQC
+
 
 def Mole_minimizer(basis, ref_basis, atomstruc):
     """
@@ -514,17 +521,16 @@ def Mole_minimizer(basis, ref_basis, atomstruc):
     :return: dict
     """
 
-    systopt = Mole(basis, atomstruc, scf = False)  # optb to optimize
+    systopt = Mole(basis, atomstruc, scf=False)  # optb to optimize
 
     sys_ref = Mole(ref_basis, atomstruc, requires_grad=False)
-
 
     def _num_gauss(system, ref_system):
         """
         calc the number of primitive Gaussian's in a basis set so that the elements of an overlap matrix can be defined.
-        :param basis: list
+        :param system: class type
             basis to get optimized
-        :param restbasis: list
+        :param ref_system: class type
             optimized basis
         :return: int
             number of elements of each basis set
@@ -541,9 +547,10 @@ def Mole_minimizer(basis, ref_basis, atomstruc):
                 n_restbasis += 2 * el.angmom + 1
         return torch.tensor([n_basis, n_restbasis])
 
-    def system_dict(system,ref_system):
+    def system_dict(system, ref_system):
         """
         def dictionary to input in fcn
+        :param system: class obj for the basis you want to optimize
         :param ref_system: class obj for the reference basis
         :return: dict
         """
@@ -560,13 +567,10 @@ def Mole_minimizer(basis, ref_basis, atomstruc):
         return {"bparams": bparams,
                 "bpacker": bpacker,
                 "ref_basis": ref_basis,
-                "atomstruc_dqc" : system.DQC.atomstruc_dqc,
-                "atomstruc" : system.DQC.atomstruc,
-                "coeffM" : ref_system.SCF.get_coeff,
-                "occ_scf" : ref_system.SCF.get_occ,
-                "num_gauss" :  _num_gauss(system, ref_system)}
+                "atomstruc_dqc": system.DQC.atomstruc_dqc,
+                "atomstruc": system.DQC.atomstruc,
+                "coeffM": ref_system.SCF.get_coeff,
+                "occ_scf": ref_system.SCF.get_occ,
+                "num_gauss": _num_gauss(system, ref_system)}
 
     return systopt, sys_ref, system_dict(systopt, sys_ref)
-
-
-

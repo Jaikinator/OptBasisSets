@@ -1,5 +1,5 @@
 """
-function to convert a given dqc Basis format into an scf basis format.
+function to convert a given dqc Basis format into a scf basis format.
 """
 
 import torch
@@ -8,10 +8,10 @@ from dqc.utils.misc import gaussian_int
 
 def bconv(bparams, bpacker ):
     """
-    creates a pyscf type basis dict out of an given dqc type basis input
-    :param bparams: torch.tensor with coeff of basis set
+    creates a pyscf type basis dict out of a given dqc type basis input
+    :param bparams: torch.Tensor with coeff of basis set
     :param bpacker: xitorch._core.packer.Packer object to create the CGTOBasis out of the bparams
-    :return: dict where each element gots his own basis arr
+    :return: dict where each element gets his own basis arr
     """
     basis = bpacker.construct_from_tensor(bparams)
     def wfnormalize_(CGTOB):
@@ -35,6 +35,7 @@ def bconv(bparams, bpacker ):
         #     return self
 
         coeffs = CGTOB.coeffs
+
         # normalize to have individual gaussian integral to be 1 (if coeff is 1)
 
         coeffs = coeffs * torch.sqrt(gaussian_int(2 * CGTOB.angmom + 2, 2 * CGTOB.alphas))
@@ -53,7 +54,7 @@ def bconv(bparams, bpacker ):
     for el in basis:
         arr = []
         for CGTOB in basis[el]:
-            CGTOB =  wfnormalize_(CGTOB)
+            CGTOB = wfnormalize_(CGTOB)
             innerarr = [CGTOB.angmom]
             for al,co in zip(CGTOB.alphas, CGTOB.coeffs):
                 innerarr.append([float(al), float(co)])
