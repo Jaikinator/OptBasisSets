@@ -97,7 +97,6 @@ class MoleSCF:
                 print(f"No basis {self.basis} found for {el_dict[self.elements[i]]}."
                       f" Try to get it from https://www.basissetexchange.org/")
                 basis = bse.get_basis(self.basis, elements=[el_dict[self.elements[i]]], fmt="nwchem")
-                print( "Hi",bse.get_basis(self.basis, elements=[el_dict[self.elements[i]]], fmt="nwchem"))
                 fname = f"{folderpath}/{basisname}.{self.elements[i]}.nw"
                 with open(fname, "w") as f:
                     f.write(basis)
