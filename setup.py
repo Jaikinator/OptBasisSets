@@ -11,9 +11,10 @@ setup(
                         "numpy~=1.21.2",
                         "ase==3.22.1",
                         "basis-set-exchange==0.9",
-                        "torch==1.10.0"],
+                        "torch==1.10.0",
+                        "dqc == 0.2.0.dev1172031026566"],
     url='https://github.com/Jaikinator/OptBasisSets',
-    dependency_links=["https://github.com/Jaikinator/dqc.git"],  # dqc nightly
+    dependency_links=["https://github.com/Jaikinator/dqc/tarball/master#egg=0.2.0.dev1172031026566"],  # dqc nightly
     license='',
     author='Jacob ',
     author_email='',
