@@ -12,8 +12,8 @@ from dqc.api.parser import parse_moldesc
 import warnings  # for warnings
 import os
 import basis_set_exchange as bse  # basest set exchange library
-from data.w417db import *
-from data.avdata import *
+from optb.data.w417db import *
+from optb.data.avdata import *
 
 # get atom pos:
 from ase.build import molecule
@@ -71,7 +71,7 @@ class MoleSCF:
         If the file doesn't exist it will be downloaded in the NWChem format.
         :return: mol.basis object
         """
-
+        print(os.path.dirname(os.path.realpath(__file__)))
         folderpath = os.path.realpath("data/NWChemBasis")
 
         if os.path.exists(folderpath) == False:  # check if NWChemBasis or data folder exist. if not it will be created
