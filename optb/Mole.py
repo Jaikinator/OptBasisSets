@@ -71,39 +71,54 @@ class MoleSCF:
         If the file doesn't exist it will be downloaded in the NWChem format.
         :return: mol.basis object
         """
-        print(os.path.dirname(os.path.realpath(__file__)))
-        folderpath = os.path.realpath("data/NWChemBasis")
 
-        if os.path.exists(folderpath) == False:  # check if NWChemBasis or data folder exist. if not it will be created
-            warnings.warn("No NWChemBasis or data folder exist it will be created.")
-            os.mkdir(os.path.abspath(folderpath))
-            fullpath = os.path.abspath(folderpath)
-            print(f"NWChemBasis folder is created to {fullpath}")
+        thispath = os.path.dirname(os.path.realpath(__file__))
+        dbpath = os.path.join(thispath, "data/.database")
+
+        if os.path.exists(dbpath) == False:  # check if NWChemBasis or data folder exist. if not it will be created
+            warnings.warn("No .database folder exist it will be created.")
+            os.mkdir(os.path.abspath(dbpath))
+            print(f" folder is created to {os.path.abspath(dbpath)}")
+
+        def _normalize_basisname(basisname: str) -> str:
+            b = basisname.lower()
+            b = b.replace("+", "p")
+            b = b.replace("*", "s")
+            b = b.replace("(", "_")
+            b = b.replace(")", "_")
+            b = b.replace(",", "_")
+            return b
 
         bdict = {}
 
         for i in range(len(self.elements)):  # assign the basis to the associated elements
             if isinstance(self.basis, str):
-                basisname = self.basis
+                basisname = _normalize_basisname(self.basis)
             else:
-                basisname = self.basis[el_dict[self.elements[i]]]
+                basisname = _normalize_basisname(self.basis[el_dict[self.elements[i]]])
                 # takes care if basis is not str
                 # instead it can be dict
-                # not working right now
 
-            if not os.path.exists(f"{folderpath}/{basisname}.{self.elements[i]}.nw"):
+            basisfolder = os.path.join(dbpath,basisname)
+
+            if not os.path.exists(basisfolder):
+                # make a folder for each basis.
+                # in this folder the elements for each basis will be stored.
+                os.mkdir(os.path.abspath(basisfolder))
+
+            if not os.path.exists(f"{basisfolder}/{basisname}.{self.elements[i]}.nw"):
                 # check if basis file already exists
                 # if False it will be downloaded and stored to NWChemBasis folder
                 print(f"No basis {self.basis} found for {el_dict[self.elements[i]]}."
                       f" Try to get it from https://www.basissetexchange.org/")
                 basis = bse.get_basis(self.basis, elements=[el_dict[self.elements[i]]], fmt="nwchem")
-                fname = f"{folderpath}/{basisname}.{self.elements[i]}.nw"
+                fname = f"{basisfolder}/{basisname}.{self.elements[i]}.nw"
                 with open(fname, "w") as f:
                     f.write(basis)
                 f.close()
                 print(f"Downloaded to {os.path.abspath(fname)}")
 
-            file = open(f"{folderpath}/{basisname}.{self.elements[i]}.nw").read()
+            file = open(f"{basisfolder}/{basisname}.{self.elements[i]}.nw").read()
             bdict[str(el_dict[self.elements[i]])] = gto.basis.parse(file, optimize=False)
         return bdict
 
@@ -291,8 +306,7 @@ class MoleDQC:
             return bdict
         else:
             print("do nothing to load basis")
-            # basis = [dqc.loadbasis(f"{self.elements[i]}:{self.basis[i]}", **kwargs) for i in range(len(self.elements))]
-            # return basis
+
 
     def _rearrange_basis(self, **kwargs):
         """
