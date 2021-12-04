@@ -1,9 +1,9 @@
 from setuptools import setup
 
 setup(
-    name='OptBasisSets',
+    name='optb',
     version='0.1',
-    packages=['optb'],
+    packages=['optb','data'],
     install_requires = ["xitorch~=0.3.0",
                         "pyscf~=2.0.1",
                         "ase~=3.22.1",
@@ -12,9 +12,8 @@ setup(
                         "ase==3.22.1",
                         "basis-set-exchange==0.9",
                         "torch==1.10.0",
-                        "dqc @ git+https://github.com/Jaikinator/dqc.git"],
+                        "dqc @ git+https://github.com/Jaikinator/dqc.git"],  # fork of dqc nightly
     url='https://github.com/Jaikinator/OptBasisSets',
-    dependency_links=["dqc = https://github.com/Jaikinator/dqc/tarball/master#egg=0.2.0.dev1172031026566"],  # dqc nightly
     license='',
     author='Jacob ',
     author_email='',
