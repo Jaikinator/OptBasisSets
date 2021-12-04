@@ -1,8 +1,7 @@
-import numpy as np
 import pandas as pd
 
 
-df = pd.read_csv("/home/jacob/PycharmProjects/OptBasisSets/w417/nonMR.dat",delimiter=" ",names=["mol", "charge", "mult"])
+df = pd.read_csv("/w417/nonMR.dat", delimiter=" ", names=["mol", "charge", "mult"])
 
 w417 = {}
 
