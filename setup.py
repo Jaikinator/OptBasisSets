@@ -4,8 +4,7 @@ setup(
     name='OptBasisSets',
     version='0.1',
     packages=['optb'],
-    install_requires = [
-                        "xitorch~=0.3.0",
+    install_requires = ["xitorch~=0.3.0",
                         "pyscf~=2.0.1",
                         "ase~=3.22.1",
                         "setuptools~=58.0.4",
@@ -14,7 +13,7 @@ setup(
                         "basis-set-exchange==0.9",
                         "torch==1.10.0"],
     url='https://github.com/Jaikinator/OptBasisSets',
-    dependency_links=["https://github.com/Jaikinator/dqc/tarball/master#egg=0.2.0.dev1172031026566"],
+    dependency_links=["https://github.com/Jaikinator/dqc/tarball/master#egg=dqc.0.2.0.dev1172031026566"],  # dqc nightly
     license='',
     author='Jacob ',
     author_email='',
