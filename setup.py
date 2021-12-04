@@ -4,7 +4,7 @@ setup(
     name='OptBasisSets',
     version='0.1',
     packages=['optb'],
-    install_requires = ["dqc==0.2.0.dev1172031026566",
+    install_requires = [
                         "xitorch~=0.3.0",
                         "pyscf~=2.0.1",
                         "ase~=3.22.1",
