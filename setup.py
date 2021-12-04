@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='optb',
     version='0.1',
-    packages=['optb'],
+    packages=['optb', 'optb/data'],
     install_requires = ["xitorch~=0.3.0",
                         "pyscf~=2.0.1",
                         "ase~=3.22.1",
