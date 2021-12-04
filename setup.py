@@ -14,7 +14,7 @@ setup(
                         "torch==1.10.0",
                         "dqc == 0.2.0.dev1172031026566"],
     url='https://github.com/Jaikinator/OptBasisSets',
-    dependency_links=["https://github.com/Jaikinator/dqc/tarball/master#egg=0.2.0.dev1172031026566"],  # dqc nightly
+    dependency_links=["dqc = https://github.com/Jaikinator/dqc/tarball/master#egg=0.2.0.dev1172031026566"],  # dqc nightly
     license='',
     author='Jacob ',
     author_email='',
