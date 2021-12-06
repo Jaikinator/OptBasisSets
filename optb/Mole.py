@@ -13,7 +13,8 @@ import warnings  # for warnings
 import os
 import basis_set_exchange as bse  # basest set exchange library
 from optb.data.w417db import *
-from optb.data.avdata import *
+import optb.data.avdata as avdata
+import optb.data.preselected_avdata as presel_avdata
 
 # get atom pos:
 from ase.build import molecule
@@ -443,10 +444,13 @@ class Mole_w417:
 
 
 class MoleDB:
-    def __init__(self, basis: str, atomstrucstr: str, db=None, scf=True, requires_grad=False, rearrange=True):
+    def __init__(self, basis: str, atomstrucstr: str, db=None, scf=True,
+                 requires_grad=False, rearrange=True, preselected = True ):
 
         self.atomstrucstr = atomstrucstr
         self.db = db
+        if preselected:
+            self._check_preselected()
 
         db = self._check_Mole_from_DB()
 
@@ -471,9 +475,9 @@ class MoleDB:
         :return class object
         """
         if self.db == None:
-            if self.atomstrucstr in elw417:
+            if self.atomstrucstr in avdata.elw417:
                 return "w4-17"
-            elif self.atomstrucstr in elg2:
+            elif self.atomstrucstr in avdata.elg2:
                 print("pls notice that you get Data from the less accurate g2 Database.")
                 return "g2"
             else:
@@ -483,9 +487,21 @@ class MoleDB:
         elif self.db == "g2":
             return "w4-17"
 
+    def _check_preselected(self):
+        """
+        checks if data is in preselected_avdata.py if not raises error
+        """
+        if self.atomstrucstr not in presel_avdata.elw417 or self.atomstrucstr not in presel_avdata.elg2:
+            print(self.atomstrucstr)
+            raise ImportError("The molecule does not have a charge of 0 or the multiplicity of 1 ")
+
+
+
+
+
 
 class Mole:
-    def __init__(self, basis: str, atomstruc, db=None, scf=True, requires_grad=True, rearrange=True):
+    def __init__(self, basis: str, atomstruc, db=None, scf=True, requires_grad=True, rearrange=True, preselected = True):
         """
         class to define the systems to optimize.
         Therefore, it creates a MoleSCF and a MoleDQC Object.
@@ -499,6 +515,8 @@ class Mole:
                                   ...])
                             therefore position has to be the length 3 with float number for each axis position in
                             cartesian space. For example pos = [1.0, 1.0, 1.0]
+        :param preselected: if true you only have access to molecules,
+                whose charge is zero as well as which multiplicity is 1.
         :param db: select which database should be loaded
         :param scf: if True you get the optb as dqc as well as scf optb.
         :param requires_grad: support gradient of torch.Tensor
@@ -515,7 +533,7 @@ class Mole:
 
             self.DQC = MoleDQC(basis, self.atomstruc, elementsarr, requires_grad, rearrange)
         elif type(atomstruc) is str:
-            mole = MoleDB(basis, atomstruc, db, scf, requires_grad, rearrange)
+            mole = MoleDB(basis, atomstruc, db, scf, requires_grad, rearrange,preselected)
             self.molecule = mole.molecule
             self.atomstruc = mole.atomstruc
             if scf:
