@@ -1448,7 +1448,7 @@ class W417:
         return self.molecule["energy"]
     @property
     def charge(self):
-        return self.molecule["energy"]
+        return self.molecule["charge"]
     @property
     def mult(self):
         return self.molecule["mult"]
