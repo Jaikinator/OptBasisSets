@@ -491,9 +491,9 @@ class MoleDB:
         """
         checks if data is in preselected_avdata.py if not raises error
         """
-        if self.atomstrucstr not in presel_avdata.elw417 or self.atomstrucstr not in presel_avdata.elg2:
-            print(self.atomstrucstr)
-            raise ImportError("The molecule does not have a charge of 0 or the multiplicity of 1 ")
+        if not (self.atomstrucstr  in presel_avdata.elw417 or self.atomstrucstr  in presel_avdata.elg2):
+            raise ImportError("The molecule does not have a charge of 0 or the multiplicity of 1."
+                              " If this where intended maybe change MoleDB.preselected to false.")
 
 
 
