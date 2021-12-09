@@ -478,7 +478,8 @@ class MoleDB:
             if self.atomstrucstr in avdata.elw417:
                 return "w4-17"
             elif self.atomstrucstr in avdata.elg2:
-                print("pls notice that you get Data from the less accurate g2 Database.")
+                print(f"pls notice that atom positions form {self.atomstrucstr} "
+                      f"are loaded by the less accurate g2 Database.")
                 return "g2"
             else:
                 raise ImportError("Molecule not found in g2 or w4-17 Database")
