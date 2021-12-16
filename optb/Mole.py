@@ -3,21 +3,28 @@ File that stores class Obj to define a Molecular System
 """
 
 from pyscf import gto, scf
+
+from dataclasses import dataclass, field
+from typing import Union
+import warnings  # for warnings
+import os
+
 import dqc
 import torch
 import xitorch as xt
 from dqc.utils.datastruct import AtomCGTOBasis
 import dqc.hamilton.intor as intor
 from dqc.api.parser import parse_moldesc
-import warnings  # for warnings
-import os
+
 import basis_set_exchange as bse  # basest set exchange library
+
+
 from optb.data.w417db import *
 import optb.data.avdata as avdata
 import optb.data.preselected_avdata as presel_avdata
 
 # get atom pos:
-from ase.build import molecule
+from ase.build import molecule as asemolecule
 
 from optb.params_periodic_system import el_dict  # contains dict with all numbers and Symbols of the periodic table
 
@@ -100,7 +107,7 @@ class MoleSCF:
                 # takes care if basis is not str
                 # instead it can be dict
 
-            basisfolder = os.path.join(dbpath,basisname)
+            basisfolder = os.path.join(dbpath, basisname)
 
             if not os.path.exists(basisfolder):
                 # make a folder for each basis.
@@ -308,7 +315,6 @@ class MoleDQC:
         else:
             print("do nothing to load basis")
 
-
     def _rearrange_basis(self, **kwargs):
         """
         rearrange the sequence of dqc a basis to one that is used by pyscf.
@@ -381,28 +387,117 @@ class MoleDQC:
         return self._get_ovlp()
 
 
-class Mole_ase:
-    def __init__(self, basis: str, atomstrucstr: str, scf=True, requires_grad=False, rearrange=True):
-        """
-        Same as Mole just gets the atom-structure (atom positions, charge, multiplicity) from the ase g2 databases.
-        :param atomstrucstr: str like H2O, CH4 etc.
+@dataclass
+class Molecarrier:
+    basis: str
+    atomstruc: list
 
-        """
-        self.molecule = molecule(atomstrucstr)
-        self.atomstruc = self._create_atomstruc_from_ase()
+    def get_dqc(self, **kwargs):
+        return MoleDQC(self.basis, self.atomstruc, **kwargs)
 
-        elementsarr = _get_element_arr(self.atomstruc)
+    def get_scf(self, **kwargs):
+        return MoleSCF(self.basis, self.atomstruc, **kwargs)
 
-        if scf:
-            self.SCF = MoleSCF(basis, self.atomstruc, elementsarr)
-        self.DQC = MoleDQC(basis, self.atomstruc, elementsarr, requires_grad, rearrange)
+@dataclass
+class AtomsDB:
+    """
+    Class to store Data form Databases
+    """
+    atomstrucstr: str
+    atomstruc : list
+    mult: int
+    charge: int
+    energy : float
+    molecule : object = field(repr= False)
 
-    def _create_atomstruc_from_ase(self):
+def loadatomstruc(atomstrucstr: Union[list, str],db = None,preselected = True, owndb = False):
+    """
+    load molecule informations from a given DB and pass it throw to the AtomsDB class
+    The supportet databasis are g2 and w4-17
+    :param atomstrucstr: string of molecule like CH4 H2O etc.
+    :param db: select specific
+    :param preselected: load preselected Database files where multiplicity is 1 and charge is 0
+    :param owndb: if you want to use your own db
+    :return: AtomsDB
+    """
+    def _create_atomstruc_from_ase(molec):
         """
         creates atomstruc from ase database.
         :param atomstruc: molecule string
         :return: array like [element, [x,y,z], ...]
         """
+        chem_symb = molec.get_chemical_symbols()
+        atompos = molec.get_positions()
+
+        arr = []
+        for i in range(len(chem_symb)):
+            arr.append([chem_symb[i], list(atompos[i])])
+        return arr
+
+    def from_W417(atomstrucstr):
+        molec = W417(atomstrucstr)
+        return AtomsDB(atomstrucstr, molec.atom_pos, molec.mult, molec.charge,
+                       molec.energy, molec.molecule)
+
+    def from_g2(atomstrucstr):
+        molec= asemolecule(atomstrucstr)
+        atomstruc = _create_atomstruc_from_ase(molec)
+        mult = sum(molec.get_initial_magnetic_moments()) + 1
+        charge = sum(molec.get_initial_charges())
+        energy = None
+        return AtomsDB(atomstrucstr, atomstruc, mult, charge, energy, molec)
+
+    if owndb:
+        pass #not supported jet
+    else:
+        if db == None:
+            if preselected:
+                if atomstrucstr in presel_avdata.elw417:
+                    return from_W417(atomstrucstr)
+
+                elif atomstrucstr in presel_avdata.elg2:
+                    print("Attention you get your data from the less accurate g2 Database.\n"
+                          "NO energy detected")
+                    return from_g2(atomstrucstr)
+
+            else:
+
+                if atomstrucstr in avdata.elw417:
+                    return from_W417(atomstrucstr)
+
+                elif atomstrucstr in avdata.elg2:
+                    print("Attention you get your data from the less accurate g2 Database.\n"
+                          "NO energy detected")
+                    return from_g2(atomstrucstr)
+
+
+
+
+@dataclass
+class AtomstrucASE:
+    atomstrucstr: str
+    atomstruc: list = field(init=False)
+    mult: int = field(init=False)
+    charge: int = field(init=False)
+    molecule: object = field(init=False, repr=False)
+    """
+        gets the atom-structure (atom positions, charge, multiplicity) from the ase g2 databases.
+        :param atomstrucstr: str like H2O, CH4 etc.
+
+        """
+
+    def __post_init__(self):
+        self.molecule = asemolecule(self.atomstrucstr)
+        self.atomstruc = self._create_atomstruc_from_ase()
+        self.mult = sum(self.molecule.get_initial_magnetic_moments()) + 1
+        self.charge = sum(self.molecule.get_initial_charges())
+
+    def _create_atomstruc_from_ase(self):
+        """
+            creates atomstruc from ase database.
+            :param atomstruc: molecule string
+            :return: array like [element, [x,y,z], ...]
+            """
         chem_symb = self.molecule.get_chemical_symbols()
         atompos = self.molecule.get_positions()
 
@@ -412,97 +507,84 @@ class Mole_ase:
         return arr
 
     @property
+    def get_ase_molecule(self):
+        """
+            :return: molecule object of ase
+            """
+
+    @property
     def get_charge(self):
         """
-        :return: molecular charge
-        """
-        return sum(self.molecule.get_initial_charges())
+            :return: molecular charge
+            """
+        return self.charge
 
     @property
     def get_mult(self):
         """
-        :return: multiplicity
-        """
-        return sum(self.molecule.get_initial_magnetic_moments()) + 1
+            :return: multiplicity
+            """
+        return self.mult
 
 
-class Mole_w417:
-    def __init__(self, basis: str, atomstrucstr: str, scf=True, requires_grad=False, rearrange=True):
-        """
-        Same as Mole just gets the atom-structure (atom positions, charge, multiplicity) from the ase g2 databases.
-        :param atomstrucstr: str like H2O, CH4 etc.
-
-        """
-        self.molecule = W417(atomstrucstr)
-        self.atomstruc = self.molecule.atom_pos
-
-        elementsarr = _get_element_arr(self.atomstruc)
-
-        if scf:
-            self.SCF = MoleSCF(basis, self.atomstruc, elementsarr)
-        self.DQC = MoleDQC(basis, self.atomstruc, elementsarr, requires_grad, rearrange)
-
-
-class MoleDB:
-    def __init__(self, basis: str, atomstrucstr: str, db=None, scf=True,
-                 requires_grad=False, rearrange=True, preselected = True ):
-
-        self.atomstrucstr = atomstrucstr
-        self.db = db
-        if preselected:
-            self._check_preselected()
-
-        db = self._check_Mole_from_DB()
-
-        if db == "w4-17":
-            mole = Mole_w417(basis, self.atomstrucstr, scf, requires_grad, rearrange)
-            self.molecule = mole.molecule
-        elif db == "g2":
-            mole = Mole_ase(basis, self.atomstrucstr, scf, requires_grad, rearrange)
-            self.molecule = mole
-
-        self.atomstruc = mole.atomstruc
-
-        if scf:
-            self.SCF = mole.SCF
-
-        self.DQC = mole.DQC
-
-    def _check_Mole_from_DB(self):
-        """
-        Try to get atomic positions from database.
-        Therefore check in which Database the module is.
-        :return class object
-        """
-        if self.db == None:
-            if self.atomstrucstr in avdata.elw417:
-                return "w4-17"
-            elif self.atomstrucstr in avdata.elg2:
-                print(f"pls notice that atom positions form {self.atomstrucstr} "
-                      f"are loaded by the less accurate g2 Database.")
-                return "g2"
-            else:
-                raise ImportError("Molecule not found in g2 or w4-17 Database")
-        elif self.db == "w4-17":
-            return "w4-17"
-        elif self.db == "g2":
-            return "w4-17"
-
-    def _check_preselected(self):
-        """
-        checks if data is in preselected_avdata.py if not raises error
-        """
-        if not (self.atomstrucstr  in presel_avdata.elw417 or self.atomstrucstr  in presel_avdata.elg2):
-            raise ImportError("The molecule does not have a charge of 0 or the multiplicity of 1."
-                              " If this where intended maybe change MoleDB.preselected to false.")
+@dataclass
+class AtomstrucW417:
+    """
+    Gets the atom-structure (atom positions, charge, multiplicity) from the W417 database.
+    :param atomstrucstr: str like H2O, CH4 etc.
+    """
+    atomstrucstr: str
+    atomstruc: list = field(init=False)
+    mult: int = field(init = False)
+    charge: int = field(init = False)
+    energy : int = field(init = False)
+    def __post_init__(self):
+        molecule = W417(self.atomstrucstr)
+        self.atomstruc = molecule.atom_pos
+        self.charge = molecule.charge
+        self.energy = molecule.energy
+        self.mult = molecule.mult
 
 
+# @dataclass
+# def AtomstrucfDB:
+#     atomstrucstr: str
+#     db: str = "w4-17"
+#     preselected : bool = True
+#
+#     def __post_init__(self):
+#
+#         if self.preselected:
+#             self._check_preselected()
+#
+#         db = self._check_Mole_from_DB()
+#
+#
+#     def _check_Mole_from_DB(self):
+#         """
+#         Try to get atomic positions from database.
+#         Therefore check in which Database the module is.
+#         :return class object
+#         """
+#         if self.db == "w4-17":
+#             return "w4-17"
+#         elif self.db == "g2":
+#             return "w4-17"
+#         elif self.db:
+#             pass
+#
+#     def _check_preselected(self) -> AtomstrucfDB:
+#         """
+#         checks if data is in preselected_avdata.py if not raises error
+#         """
+#         if not (self.atomstrucstr in presel_avdata.elw417 or self.atomstrucstr in presel_avdata.elg2):
+#             raise ImportError("The molecule does not have a charge of 0 or the multiplicity of 1."
+#                               " If this where intended maybe change MoleDB.preselected to false.")
 
 
-
-
-class Mole:
-    def __init__(self, basis: str, atomstruc, db=None, scf=True, requires_grad=True, rearrange=True, preselected = True):
+class Mole(Molecarrier):
+    def __init__(self, basis: str, atomstruc, db=None, scf=True, requires_grad=True, rearrange=True, preselected=True):
+        super().__init__(basis, atomstruc)
         """
         class to define the systems to optimize.
         Therefore, it creates a MoleSCF and a MoleDQC Object.
@@ -524,20 +606,28 @@ class Mole:
         :param rearrange: if True the dqc basis will be rearranged to match the basis read by scf
         """
 
+        self.scf = scf
+        self.basis = basis
+        self._atomstrucstr = None
+        self.requires_grad = requires_grad
         if type(atomstruc) is list:
             self.atomstruc = atomstruc
+            # take care for scf getter
+            self.elementsarr = _get_element_arr(atomstruc)
 
-            elementsarr = _get_element_arr(atomstruc)
+            if self.scf:
+                self.SCF = self.get_SCF()
 
-            if scf:
-                self.SCF = MoleSCF(basis, self.atomstruc, elementsarr)
+            self.DQC = MoleDQC(basis, self.atomstruc, self.elementsarr, self.requires_grad, rearrange)
 
-            self.DQC = MoleDQC(basis, self.atomstruc, elementsarr, requires_grad, rearrange)
         elif type(atomstruc) is str:
-            mole = MoleDB(basis, atomstruc, db, scf, requires_grad, rearrange,preselected)
+            self._atomstrucstr = atomstruc
+            self._db = db
+            mole = MoleDB(self.basis, self.atomstrucstr, db, scf, requires_grad, rearrange, preselected)
             self.molecule = mole.molecule
             self.atomstruc = mole.atomstruc
-            if scf:
+
+            if self.scf:
                 self.SCF = mole.SCF
 
             self.DQC = mole.DQC
@@ -552,7 +642,7 @@ def Mole_minimizer(basis, ref_basis, atomstruc):
     :return: dict
     """
 
-    systopt = Mole(basis, atomstruc, scf = False)  # optb to optimize
+    systopt = Mole(basis, atomstruc, scf=False)  # optb to optimize
 
     sys_ref = Mole(ref_basis, atomstruc, requires_grad=False)
 
@@ -605,3 +695,13 @@ def Mole_minimizer(basis, ref_basis, atomstruc):
                 "num_gauss": _num_gauss(system, ref_system)}
 
     return systopt, sys_ref, system_dict(systopt, sys_ref)
+
+
+if __name__ == "__main__":
+    basis = "STO-3G"
+
+    atomstruc = [['H', [0.5, 0.0, 0.0]],
+                 ['H', [-0.5, 0.0, 0.0]]]
+
+    print(loadatomstuc("CH4"))
+
