@@ -1,7 +1,9 @@
+
 import xitorch.optimize
-import sys
+
 from optb import *
 from torch.utils.tensorboard import SummaryWriter
+from output import *
 
 # sys.stdout = open("out.txt", "w")
 ########################################################################################################################
@@ -82,8 +84,55 @@ def scf_dft_energy(basis, atomstruc):
     mf.kernel()
     return mf.energy_tot()
 
+def optimize_basis(basis, basis_ref, atomstruc, step , maxiter, minimize_kwargs: dict = {}, out_kwargs : dict = {}):
+    """
+    function to optimize basis functions.
+    :param basis: basis which should be optimized
+    :param basis_ref: reference basis
+    :param atomstruc: Molecule Structure
+    :param step: learning rate
+    :param maxiter: maximal learning steps
+    :param minimize_kwargs: kwargs for the xitorch minimizer
+    :param out_kwargs: kwargs to configure the output save functions
+    :return: optimized basis
+    """
+
+    bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc)
+
+    writerpath, outpath = conf_output(basis, basis_ref, atomstruc, step, f_rtol,**out_kwargs)
+    writer = SummaryWriter(writerpath)
+
+    print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc}")
+
+    min_bparams = xitorch.optimize.minimize(fcn,
+                                            func_dict["bparams"],
+                                            (func_dict["bpacker"],
+                                             func_dict["ref_basis"],
+                                             func_dict["atomstruc_dqc"],
+                                             func_dict["atomstruc"],
+                                             func_dict["coeffM"],
+                                             func_dict["occ_scf"],
+                                             func_dict["num_gauss"],),
+                                            step=step,
+                                            method="Adam",
+                                            maxiter=maxiter,
+                                            verbose=True,
+                                            writer=writer, **minimize_kwargs)
+
+    bsys1.get_SCF()
+    energy_small_basis = bsys1.SCF.get_tot_energy
+    energy_ref_basis = bsys2.SCF.get_tot_energy
+
+    optbasis = bconv(min_bparams, func_dict["bpacker"])
+    optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc)
+
+    save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis, optbasis_energy)
+
+    return optbasis
 
 if __name__ == "__main__":
+
+
     ####################################################################################################################
     # configure atomic optb:
     ####################################################################################################################
@@ -91,7 +140,7 @@ if __name__ == "__main__":
     # atomstruc = [['H', [0.5, 0.0, 0.0]],
     #              ['H',  [-0.5, 0.0, 0.0]]]
 
-    atomstruc = "CH4"
+    atomstruc = "bf"
 
     ####################################################################################################################
     # configure basis to optimize:
@@ -109,60 +158,16 @@ if __name__ == "__main__":
 
     bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc)
 
+
     ####################################################################################################################
     # set up xitorch.optimize.minimize
     ####################################################################################################################
-    step = 2e-6
-    maxiter = 0
-    f_rtol = 1e-8
+    step = 2e-5
+    maxiter = 100
+    f_rtol = 1e-12
 
-    print("\n start optimization")
-    writer = SummaryWriter(f"molecule_{atomstruc}", comment=f"step:{step}, f_rtol: {f_rtol} ")
+    ####################################################################################################################
+    # run actual optimization
+    ####################################################################################################################
 
-
-    min_bparams = xitorch.optimize.minimize(fcn,
-                                            func_dict["bparams"],
-                                            (func_dict["bpacker"],
-                                             func_dict["ref_basis"],
-                                             func_dict["atomstruc_dqc"],
-                                             func_dict["atomstruc"],
-                                             func_dict["coeffM"],
-                                             func_dict["occ_scf"],
-                                             func_dict["num_gauss"],),
-                                            step=step,
-                                            method="Adam",
-                                            maxiter=maxiter,
-                                            f_rtol=f_rtol,
-                                            verbose=True,
-                                            writer=writer)
-
-    testsystem = Mole(basis, atomstruc)
-
-    initenergy = testsystem.SCF.get_tot_energy
-
-    print(f"total energy scf with {basis} as initial basis:\n",
-          initenergy)
-    print(f"total energy scf with {basis_ref} as reference basis:\n",
-          bsys2.SCF.get_tot_energy)
-    print("energy after optimization of basis as basis set:\n",
-          scf_dft_energy(bconv(min_bparams, func_dict["bpacker"]), testsystem.SCF.atomstruc))
-
-    # print("basis scf initial:")
-    # pprint.pprint(testsystem.SCF.get_basis)
-    # print("basis after optimization:")
-    # pprint.pprint(bconv(min_bparams, func_dict["bpacker"]))
-
-    basist = func_dict["bpacker"].construct_from_tensor(min_bparams)
-
-
-    test_dict = bconv(min_bparams, func_dict["bpacker"])
-
-    # print(bse.write_formatted_basis_str(test_dict, "nwchem"))
-
-
-
-"""
-To configure verbose options on which step something should be printed look at
-~/xitorch/_impls/optimize/minimizer.py line 183
-
-"""
+    optimizebasis(basis,basis_ref,atomstruc,step,maxiter, minimize_kwargs = {"f_rtol" : f_rtol})
