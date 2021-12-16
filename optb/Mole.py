@@ -78,12 +78,11 @@ class Mole(Molecarrier):
             self.DQC = self._get_dqc(elementsarr=self.elementsarr,
                                     requires_grad=requires_grad, rearrange=rearrange)
 
-    @property
-    def get_SCF(self):
+    def get_SCF(self,**kwargs):
         """
         rerun scf calculation and ad it to Mole
         """
-        self.SCF = self._get_scf(elementsarr=self.elementsarr)
+        self.SCF = self._get_scf(elementsarr=self.elementsarr,**kwargs)
         return self
 
 def Mole_minimizer(basis, ref_basis, atomstruc):

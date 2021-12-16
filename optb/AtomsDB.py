@@ -78,7 +78,7 @@ def loadatomstruc(atomstrucstr: Union[list, str], db=None, preselected=True):
 
             elif atomstrucstr in presel_avdata.elg2:
                 print("Attention you get your data from the less accurate g2 Database.\n"
-                      "NO energy detected")
+                      "No energy detected")
                 return from_g2(atomstrucstr)
 
             else:
@@ -92,7 +92,7 @@ def loadatomstruc(atomstrucstr: Union[list, str], db=None, preselected=True):
             elif atomstrucstr in avdata.elg2:
 
                 print("Attention you get your data from the less accurate g2 Database.\n"
-                      "NO energy detected")
+                      "No energy detected")
                 return from_g2(atomstrucstr)
 
             else:
