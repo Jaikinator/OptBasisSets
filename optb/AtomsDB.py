@@ -34,7 +34,6 @@ def loadatomstruc(atomstrucstr: Union[list, str], db=None, preselected=True):
     :param atomstrucstr: string of molecule like CH4 H2O etc.
     :param db: select specific
     :param preselected: load preselected Database files where multiplicity is 1 and charge is 0
-    :param owndb: if you want to use your own db
     :return: AtomsDB
     """
 
