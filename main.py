@@ -91,7 +91,7 @@ if __name__ == "__main__":
     # atomstruc = [['H', [0.5, 0.0, 0.0]],
     #              ['H',  [-0.5, 0.0, 0.0]]]
 
-    atomstruc = "bf"
+    atomstruc = "CH4"
 
     ####################################################################################################################
     # configure basis to optimize:
@@ -113,8 +113,9 @@ if __name__ == "__main__":
     # set up xitorch.optimize.minimize
     ####################################################################################################################
     step = 2e-6
-    maxiter = 10000
+    maxiter = 0
     f_rtol = 1e-8
+
     print("\n start optimization")
     writer = SummaryWriter(f"molecule_{atomstruc}", comment=f"step:{step}, f_rtol: {f_rtol} ")
 
@@ -146,13 +147,18 @@ if __name__ == "__main__":
     print("energy after optimization of basis as basis set:\n",
           scf_dft_energy(bconv(min_bparams, func_dict["bpacker"]), testsystem.SCF.atomstruc))
 
-    print("basis scf initial:   ", testsystem.SCF.get_basis)
-    print("basis after one step:", bconv(min_bparams, func_dict["bpacker"]))
+    # print("basis scf initial:")
+    # pprint.pprint(testsystem.SCF.get_basis)
+    # print("basis after optimization:")
+    # pprint.pprint(bconv(min_bparams, func_dict["bpacker"]))
 
     basist = func_dict["bpacker"].construct_from_tensor(min_bparams)
 
 
-    sys.stdout.close()
+    test_dict = bconv(min_bparams, func_dict["bpacker"])
+
+    # print(bse.write_formatted_basis_str(test_dict, "nwchem"))
+
 
 
 """

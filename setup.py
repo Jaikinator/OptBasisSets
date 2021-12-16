@@ -13,7 +13,7 @@ setup(
                         "torch==1.10.0",
                         "tensorboard >= 2.7.0"
                         "dqc @ git+https://github.com/Jaikinator/dqc.git" # fork of dqc nightly
-                        "xitorch @ https://github.com/Jaikinator/xitorch.git"],   # fork of xitorch nightly
+                        "xitorch @ git+https://github.com/Jaikinator/xitorch.git"],   # fork of xitorch nightly
     url='https://github.com/Jaikinator/OptBasisSets',
     license='',
     author='Jacob ',
