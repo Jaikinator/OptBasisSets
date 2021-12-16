@@ -18,7 +18,6 @@ from dqc.api.parser import parse_moldesc
 
 import basis_set_exchange as bse  # basest set exchange library
 
-
 from optb.data.w417db import *
 import optb.data.avdata as avdata
 import optb.data.preselected_avdata as presel_avdata
@@ -398,19 +397,21 @@ class Molecarrier:
     def get_scf(self, **kwargs):
         return MoleSCF(self.basis, self.atomstruc, **kwargs)
 
+
 @dataclass
 class AtomsDB:
     """
     Class to store Data form Databases
     """
     atomstrucstr: str
-    atomstruc : list
+    atomstruc: list
     mult: int
     charge: int
-    energy : float
-    molecule : object = field(repr= False)
+    energy: float
+    molecule: object = field(repr=False)
 
-def loadatomstruc(atomstrucstr: Union[list, str],db = None,preselected = True, owndb = False):
+
+def loadatomstruc(atomstrucstr: Union[list, str], db=None, preselected=True, owndb=False):
     """
     load molecule informations from a given DB and pass it throw to the AtomsDB class
     The supportet databasis are g2 and w4-17
@@ -420,6 +421,7 @@ def loadatomstruc(atomstrucstr: Union[list, str],db = None,preselected = True, o
     :param owndb: if you want to use your own db
     :return: AtomsDB
     """
+
     def _create_atomstruc_from_ase(molec):
         """
         creates atomstruc from ase database.
@@ -440,150 +442,95 @@ def loadatomstruc(atomstrucstr: Union[list, str],db = None,preselected = True, o
                        molec.energy, molec.molecule)
 
     def from_g2(atomstrucstr):
-        molec= asemolecule(atomstrucstr)
+        molec = asemolecule(atomstrucstr)
         atomstruc = _create_atomstruc_from_ase(molec)
         mult = sum(molec.get_initial_magnetic_moments()) + 1
         charge = sum(molec.get_initial_charges())
         energy = None
         return AtomsDB(atomstrucstr, atomstruc, mult, charge, energy, molec)
 
-    if owndb:
-        pass #not supported jet
-    else:
-        if db == None:
-            if preselected:
-                if atomstrucstr in presel_avdata.elw417:
-                    return from_W417(atomstrucstr)
+    def dberror():
+        if db is None:
+            db_text = "w417 or g2"
+        else:
+            db_text = db
+        text = f"Your Molecule is not available in {db_text} Database or your database is not supported"
+        raise ImportError(text)
 
-                elif atomstrucstr in presel_avdata.elg2:
-                    print("Attention you get your data from the less accurate g2 Database.\n"
-                          "NO energy detected")
-                    return from_g2(atomstrucstr)
+    if db is None and preselected is True:
+            if atomstrucstr in presel_avdata.elw417:
+                return from_W417(atomstrucstr)
+
+            elif atomstrucstr in presel_avdata.elg2:
+                print("Attention you get your data from the less accurate g2 Database.\n"
+                      "NO energy detected")
+                return from_g2(atomstrucstr)
 
             else:
+                dberror()
 
-                if atomstrucstr in avdata.elw417:
-                    return from_W417(atomstrucstr)
+    elif db is None and preselected is False:
 
-                elif atomstrucstr in avdata.elg2:
-                    print("Attention you get your data from the less accurate g2 Database.\n"
-                          "NO energy detected")
-                    return from_g2(atomstrucstr)
+            if atomstrucstr in avdata.elw417:
+                return from_W417(atomstrucstr)
 
+            elif atomstrucstr in avdata.elg2:
 
+                print("Attention you get your data from the less accurate g2 Database.\n"
+                      "NO energy detected")
+                return from_g2(atomstrucstr)
 
+            else:
+                dberror()
 
-@dataclass
-class AtomstrucASE:
-    atomstrucstr: str
-    atomstruc: list = field(init=False)
-    mult: int = field(init=False)
-    charge: int = field(init=False)
-    molecule: object = field(init=False, repr=False)
-    """
-        gets the atom-structure (atom positions, charge, multiplicity) from the ase g2 databases.
-        :param atomstrucstr: str like H2O, CH4 etc.
+    elif db is not None and preselected is True:
 
-        """
+        if db == "w417":
 
-    def __post_init__(self):
-        self.molecule = asemolecule(self.atomstrucstr)
-        self.atomstruc = self._create_atomstruc_from_ase()
-        self.mult = sum(self.molecule.get_initial_magnetic_moments()) + 1
-        self.charge = sum(self.molecule.get_initial_charges())
+            if atomstrucstr in presel_avdata.elw417:
+                return from_W417(atomstrucstr)
+            else:
+                dberror()
 
-    def _create_atomstruc_from_ase(self):
-        """
-            creates atomstruc from ase database.
-            :param atomstruc: molecule string
-            :return: array like [element, [x,y,z], ...]
-            """
-        chem_symb = self.molecule.get_chemical_symbols()
-        atompos = self.molecule.get_positions()
+        elif db == "g2":
 
-        arr = []
-        for i in range(len(chem_symb)):
-            arr.append([chem_symb[i], list(atompos[i])])
-        return arr
+            if atomstrucstr in presel_avdata.elg2:
+                print("Attention you get your data from the less accurate g2 Database.\n"
+                      "NO energy detected")
+                return from_g2(atomstrucstr)
+            else:
+                dberror()
 
-    @property
-    def get_ase_molecule(self):
-        """
-            :return: molecule object of ase
-            """
+        else:
+            text = f"Your Molecule is not available in {db} Database or your database is not supported." \
+                   f"Or it does not match expectations "
+            raise ImportError(text)
 
-    @property
-    def get_charge(self):
-        """
-            :return: molecular charge
-            """
-        return self.charge
+    elif db is not None and preselected is False:
 
-    @property
-    def get_mult(self):
-        """
-            :return: multiplicity
-            """
-        return self.mult
+        if db == "w417":
+            if atomstrucstr in avdata.elw417:
+                return from_W417(atomstrucstr)
+            else:
+                dberror()
+        elif db == "g2":
+            if atomstrucstr in avdata.elg2:
+                print("Attention you get your data from the less accurate g2 Database.\n"
+                      "NO energy detected")
+                return from_g2(atomstrucstr)
+            else:
+                dberror()
+        else:
+            dberror()
 
-
-@dataclass
-class AtomstrucW417:
-    """
-    Gets the atom-structure (atom positions, charge, multiplicity) from the W417 database.
-    :param atomstrucstr: str like H2O, CH4 etc.
-    """
-    atomstrucstr: str
-    atomstruc: list = field(init=False)
-    mult: int = field(init = False)
-    charge: int = field(init = False)
-    energy : int = field(init = False)
-    def __post_init__(self):
-        molecule = W417(self.atomstrucstr)
-        self.atomstruc = molecule.atom_pos
-        self.charge = molecule.charge
-        self.energy = molecule.energy
-        self.mult = molecule.mult
-
-
-# @dataclass
-# def AtomstrucfDB:
-#     atomstrucstr: str
-#     db: str = "w4-17"
-#     preselected : bool = True
-#
-#     def __post_init__(self):
-#
-#         if self.preselected:
-#             self._check_preselected()
-#
-#         db = self._check_Mole_from_DB()
-#
-#
-#     def _check_Mole_from_DB(self):
-#         """
-#         Try to get atomic positions from database.
-#         Therefore check in which Database the module is.
-#         :return class object
-#         """
-#         if self.db == "w4-17":
-#             return "w4-17"
-#         elif self.db == "g2":
-#             return "w4-17"
-#         elif self.db:
-#             pass
-#
-#     def _check_preselected(self) -> AtomstrucfDB:
-#         """
-#         checks if data is in preselected_avdata.py if not raises error
-#         """
-#         if not (self.atomstrucstr in presel_avdata.elw417 or self.atomstrucstr in presel_avdata.elg2):
-#             raise ImportError("The molecule does not have a charge of 0 or the multiplicity of 1."
-#                               " If this where intended maybe change MoleDB.preselected to false.")
+    else:
+        text = "Your Molecule is not be loaded maybe check db, preselected"
+        raise ImportError(text)
 
 
 class Mole(Molecarrier):
-    def __init__(self, basis: str, atomstruc, db=None, scf=True, requires_grad=True, rearrange=True, preselected=True):
+    def __init__(self, basis: str, atomstruc: Union[list, str], db=None, scf=True, requires_grad=True, rearrange=True,
+                 preselected=True):
         super().__init__(basis, atomstruc)
         """
         class to define the systems to optimize.
@@ -703,5 +650,4 @@ if __name__ == "__main__":
     atomstruc = [['H', [0.5, 0.0, 0.0]],
                  ['H', [-0.5, 0.0, 0.0]]]
 
-    print(loadatomstuc("CH4"))
-
+    print(loadatomstruc("CH4" , db = "w417", preselected= False))
