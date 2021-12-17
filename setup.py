@@ -11,7 +11,7 @@ setup(
                         "pandas ~= 1.3.4",
                         "ase==3.22.1",
                         "basis-set-exchange==0.9",
-                        "torch==1.10.0",
+                        "torch ~=1.10.0",
                         "tensorboard >= 2.7.0",
                         "dqc @ git+https://github.com/Jaikinator/dqc.git", # fork of dqc nightly
                         "xitorch @ git+https://github.com/Jaikinator/xitorch.git"],   # fork of xitorch nightly
