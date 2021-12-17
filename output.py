@@ -44,11 +44,11 @@ def conf_output(basis,refbasis, atomstruc, step, rtol, outf = None, comments:str
         warnings.warn(text)
         shutil.rmtree(outdir)
 
-    writerpath = f"{outdir}/TB_lr{step}_f_rtol{rtol}_{asctime()}"
+    writerpath = f"{outdir}/TB_{atomstruc}_lr{step}_f_rtol{rtol}_{asctime()}"
 
     return writerpath, outdir
 
-def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy):
+def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, atomstruc, lr , maxiter,method = "Adam", optkwargs : dict = {}):
     """
     save data after minimization
     :param outdir: folder where data will be stored
@@ -58,8 +58,11 @@ def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy):
     :param b2_energy: energy of the dft calc using b2 as basis
     :param optbasis: dict of the optimized basis set
     :param optbasis_energy: energy of the dft calc using optbasis as basis
+    :param atomstruc: atomstructure
     :return: None
     """
+    if type(atomstruc) is not str:
+        atomstruc = str(atomstruc)
     print(f"total energy scf with {b1} as initial basis:\n",
           b1_energy)
     print(f"total energy scf with {b2} as reference basis:\n",
@@ -72,11 +75,22 @@ def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy):
                   f"{b1}_opt_energy": optbasis_energy}
 
     df = pd.DataFrame(energy_out, index=[0])
-    df_outp = f'{outdir}/opt_{b1}_energy.csv'
+    df_outp = f'{outdir}/{atomstruc}_opt_{b1}_energy.csv'
     df.to_csv(df_outp)
 
-    jsonbasisf = f'{outdir}/opt_{b1}_basis.json'
+    mini_dict = {"learning rate" : lr,
+                 "maxiter" : maxiter,
+                 "method": method,
+                 **optkwargs} #minimizer kwargs
+
+    df_mini = pd.DataFrame(mini_dict, index=[0])
+    df_outp_mini = f'{outdir}/{atomstruc}_learning_settings.csv'
+    df_mini.to_csv(df_outp_mini)
+
+    jsonbasisf = f'{outdir}/{atomstruc}_opt_{b1}_basis.json'
 
     with open(jsonbasisf, 'w', encoding='utf-8') as file:
         json.dump(optbasis, file, ensure_ascii=False, indent=4)
+
+
 

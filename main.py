@@ -84,7 +84,8 @@ def scf_dft_energy(basis, atomstruc):
     mf.kernel()
     return mf.energy_tot()
 
-def optimize_basis(basis, basis_ref, atomstruc, step , maxiter, minimize_kwargs: dict = {}, out_kwargs : dict = {}):
+def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],step: float , maxiter = 100000000,
+                   method: str = "Adam" , minimize_kwargs: dict = {}, out_kwargs : dict = {}):
     """
     function to optimize basis functions.
     :param basis: basis which should be optimized
@@ -92,6 +93,7 @@ def optimize_basis(basis, basis_ref, atomstruc, step , maxiter, minimize_kwargs:
     :param atomstruc: Molecule Structure
     :param step: learning rate
     :param maxiter: maximal learning steps
+    :param method: method to minimize
     :param minimize_kwargs: kwargs for the xitorch minimizer
     :param out_kwargs: kwargs to configure the output save functions
     :return: optimized basis
@@ -114,7 +116,7 @@ def optimize_basis(basis, basis_ref, atomstruc, step , maxiter, minimize_kwargs:
                                              func_dict["occ_scf"],
                                              func_dict["num_gauss"],),
                                             step=step,
-                                            method="Adam",
+                                            method=method,
                                             maxiter=maxiter,
                                             verbose=True,
                                             writer=writer, **minimize_kwargs)
@@ -126,7 +128,8 @@ def optimize_basis(basis, basis_ref, atomstruc, step , maxiter, minimize_kwargs:
     optbasis = bconv(min_bparams, func_dict["bpacker"])
     optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc)
 
-    save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis, optbasis_energy)
+    save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis, optbasis_energy,
+                atomstruc, step, maxiter, method, optkwargs = minimize_kwargs)
 
     return optbasis
 
@@ -170,4 +173,4 @@ if __name__ == "__main__":
     # run actual optimization
     ####################################################################################################################
 
-    optimizebasis(basis,basis_ref,atomstruc,step,maxiter, minimize_kwargs = {"f_rtol" : f_rtol})
+    optimize_basis(basis,basis_ref,atomstruc,step,maxiter, minimize_kwargs = {"f_rtol" : f_rtol})
