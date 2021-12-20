@@ -120,14 +120,16 @@ class MoleSCF:
             mol.symmetry = kwargs["symmetry"]
         else:
             mol.symmetry = False
+
         if self.atomstrucstr is not None:
-            try:
+            if os.path.exists("./output"):
                 mol.output = f'./output/scf_{self.basis}_{self.atomstrucstr}.out'  # try to save it in outputfolder
-            except:
+            else:
                 mol.output = f'scf_{self.basis}_{self.atomstrucstr}.out' # save in home folder
 
         else:
             mol.output = f'scf_{self.basis}_{self.atomstruc}.out'
+
         # I don't know what I'am doing here:
         try:
             mol.spin = 0
