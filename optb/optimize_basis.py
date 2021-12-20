@@ -231,10 +231,11 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
         return optbasis
 
     elif type(atomstruc) is str and type(step) is float:
-        print("elif type(atomstruc) is str and type(step) is float:")
+
         bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc)
 
-        writerpath, outpath = conf_output(basis, basis_ref, atomstruc, step, f_rtol, **out_kwargs)
+        writerpath, outpath = conf_output(basis, basis_ref, atomstruc, step, f_rtol,
+                                                  outf= output_path, **out_kwargs)
         writer = SummaryWriter(writerpath)
 
         print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc}")
