@@ -33,11 +33,13 @@ def conf_output(basis,refbasis, atomstruc, step, rtol, outf = None, comments:str
         if not os.path.exists(_outf):
             os.mkdir(_outf)
         outf = _outf
-    else:
+    elif "output" not in outf:
         _outf = os.path.join(outf, "output")
         if not os.path.exists(_outf):
             os.mkdir(_outf)
         outf = _outf
+    else:
+        pass
 
     outb_dir = f"{outf}/{basis}_{refbasis}"
     outdir = os.path.join(outb_dir, atomstruc)
