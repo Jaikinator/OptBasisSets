@@ -26,9 +26,15 @@ def conf_output(basis,refbasis, atomstruc, step, rtol, outf = None, comments:str
     """
     if type(atomstruc) is not str:
         atomstruc = str(atomstruc)
+
     if outf is None:
         outf = os.path.dirname(os.path.realpath(__file__))
         _outf  = os.path.join(outf, "output")
+        if not os.path.exists(_outf):
+            os.mkdir(_outf)
+        outf = _outf
+    else:
+        _outf = os.path.join(outf, "output")
         if not os.path.exists(_outf):
             os.mkdir(_outf)
         outf = _outf
@@ -48,7 +54,7 @@ def conf_output(basis,refbasis, atomstruc, step, rtol, outf = None, comments:str
 
     return writerpath, outdir
 
-def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, atomstruc, lr , maxiter,method = "Adam", optkwargs : dict = {}):
+def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, atomstruc, lr , maxiter,method = "Adam", f_rtol =1e-8 ,optkwargs : dict = {}):
     """
     save data after minimization
     :param outdir: folder where data will be stored
@@ -74,9 +80,14 @@ def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, a
                   f"{b2}_energy": b2_energy,
                   f"{b1}_opt_energy": optbasis_energy}
 
+    if type(f_rtol) is list:    # takes care if f_rtol ist automatically a list
+        if f_rtol[0] == f_rtol[-1]:
+            f_rtol = f_rtol[0]
+
     mini_dict = {"learning rate": lr,
                  "maxiter": maxiter,
                  "method": method,
+                 "f_rtol" : f_rtol,
                  **optkwargs}  # minimizer kwargs
 
     df = pd.DataFrame(energy_out, index=[0])
