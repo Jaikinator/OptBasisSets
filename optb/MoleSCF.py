@@ -11,7 +11,7 @@ from optb.get_element_arr import *
 
 
 class MoleSCF:
-    def __init__(self, basis: str, atomstruc: list, elementsarr=None, out = True):
+    def __init__(self, basis: str, atomstruc: list, elementsarr=None, atomstrucstr = None ):
         """
         MoleSCF provides all relevant data for the basis optimization that refers to pyscf
         A mol type Object will be created as well as a restricted kohn sham
@@ -25,6 +25,7 @@ class MoleSCF:
 
         self.basis = basis  # just str of basis
         self.atomstruc = atomstruc
+        self.atomstrucstr  = atomstrucstr
 
         if elementsarr == None:
             self.elements = get_element_arr(self.atomstruc)
@@ -119,8 +120,10 @@ class MoleSCF:
             mol.symmetry = kwargs["symmetry"]
         else:
             mol.symmetry = False
-        mol.output = f'scf_{self.basis}_{self.atomstruc}.out'
-
+        if self.atomstrucstr is not None:
+            mol.output = f'scf_{self.basis}_{self.atomstrucstr}.out'
+        else:
+            mol.output = f'scf_{self.basis}_{self.atomstruc}.out'
         # I don't know what I'am doing here:
         try:
             mol.spin = 0
