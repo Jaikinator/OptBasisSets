@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # configure atomic optb:
     ####################################################################################################################
 
-    parser.add_argument("--mol",dest="atomstruc", type = str, nargs="+",
+    parser.add_argument("--mol",dest="atomstruc", type = str, nargs="+", metavar="",
                         help='Name or set of names to define the atomic structure that you want to optimize.')
 
     ####################################################################################################################
@@ -53,12 +53,12 @@ if __name__ == "__main__":
     # set up xitorch.optimize.minimize
     ####################################################################################################################
 
-    parser.add_argument("--maxiter", type=int, default = 1e6 ,help = "maximal learning iterations")
-    parser.add_argument("-lr", "--steps", type=float, nargs='+', default = 2e-5,
+    parser.add_argument("--maxiter", type=int, default = 1e6 , metavar="",help = "maximal learning iterations")
+    parser.add_argument("-lr", "--steps", type=float, nargs='+' , metavar="", default = 2e-5,
                         help="learning rate (if set you opt. the same atomic structures for multiple learning rates."
                              " If len of atomstuc is the same as the len of -lr than each atomstruc get specific lr, "
                              "otherwise the each atomstruc will be trained with every lr)")
-    parser.add_argument("--frtol", type= float, nargs='+', default = 1e-8,
+    parser.add_argument("--frtol", type= float, nargs='+', metavar="", default = 1e-8,
                         help="The relative tolerance of the norm of the input (if set you opt. " \
                              "the same atomic structures for multiple frtol." \
                              " If lr and frtol are sets than you opt the they pair together")
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     ####################################################################################################################
     # setup save path
     ####################################################################################################################
-    parser.add_argument("--saveto", type=str, nargs='+', default= os.path.dirname(os.path.realpath(__file__)),
+    parser.add_argument("--saveto", type=str, nargs='+', metavar="", default= os.path.dirname(os.path.realpath(__file__)),
                         help="specify the path where you want to create the output folder (default is current path).")
     ####################################################################################################################
     # parse arguments
