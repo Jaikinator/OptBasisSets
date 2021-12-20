@@ -69,7 +69,11 @@ def scf_dft_energy(basis, atomstruc, atomstrucstr):
     mol.atom = atomstruc
     mol.unit = 'Bohr'  # in Angstrom
     mol.verbose = 6
-    mol.output = f'scf_ownb_{atomstrucstr}.out'
+    if atomstrucstr is not None:
+        if os.path.exists("./output"):
+            mol.output = f'./output/scf_optB_{atomstrucstr}.out'  # try to save it in outputfolder
+        else:
+            mol.output = f'scf_optB_{atomstrucstr}.out'  # save in home folder
     mol.symmetry = False
     mol.basis = basis
 
@@ -99,15 +103,16 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
     :param out_kwargs: kwargs to configure the output save functions
     :return: optimized basis
     """
+
     try:
         f_rtol = minimize_kwargs["f_rtol"]
         minimize_kwargs.pop("f_rtol")
         if type(f_rtol) is list and len(f_rtol) == 1:
-            f_rtol = float(f_rtol [0])
+            f_rtol = [f_rtol[0]]
     except:
-        f_rtol = 1e-8
+        f_rtol = [1e-8]
 
-    if type(step) is list and len(step) != len([f_rtol]):
+    if type(step) is list and len(step) != len(f_rtol):
         f_rtol_arr = []
         for i in range(len(step)):
             f_rtol_arr.append(f_rtol)
@@ -249,8 +254,6 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
 
             print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc}")
 
-            print(atomstruc, step, f_rtol[i])
-
             min_bparams = xitorch.optimize.minimize(fcn,
                                                     func_dict["bparams"],
                                                     (func_dict["bpacker"],
@@ -276,15 +279,13 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
 
             save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                         optbasis_energy,
-                        atomstruc, step[i], maxiter, method,f_rtol = f_rtol, optkwargs=minimize_kwargs)
+                        atomstruc, step[i], maxiter, method,f_rtol = f_rtol[i], optkwargs=minimize_kwargs)
         return optbasis
 
     elif type(atomstruc) is str and type(step) is float:
-
+        print("elif type(atomstruc) is str and type(step) is float:")
         bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc)
 
-        f_rtol = minimize_kwargs["f_rtol"]
-        print(f_rtol)
         writerpath, outpath = conf_output(basis, basis_ref, atomstruc, step, f_rtol, **out_kwargs)
         writer = SummaryWriter(writerpath)
 
@@ -322,7 +323,13 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
 
 
 if __name__ == "__main__":
+
     savepath =  os.path.dirname(os.path.realpath(__file__))
+    _outf = os.path.join(savepath , "output")
+    if not os.path.exists(_outf):
+        os.mkdir(_outf)
+    savepath = _outf
+
     ####################################################################################################################
     # setup arg parser throw terminal inputs
     ####################################################################################################################
@@ -353,7 +360,7 @@ if __name__ == "__main__":
                         help="learning rate (if set you opt. the same atomic structures for multiple learning rates."
                              " If len of atomstuc is the same as the len of -lr than each atomstruc get specific lr, "
                              "otherwise the each atomstruc will be trained with every lr)")
-    parser.add_argument("--frtol", type= float, nargs='+', default = [1e-8],
+    parser.add_argument("--frtol", type= float, nargs='+', default = 1e-8,
                         help="The relative tolerance of the norm of the input (if set you opt. " \
                              "the same atomic structures for multiple frtol." \
                              " If lr and frtol are sets than you opt the they pair together")
@@ -366,8 +373,8 @@ if __name__ == "__main__":
 
     basis = args.basis[0]
     basis_ref = args.basis[1]
-    step = args.steps
-    f_rtol = args.frtol
+    # step = args.steps
+    # f_rtol = args.frtol
     maxiter = int(args.maxiter)
 
     atomstruc = args.atomstruc
@@ -379,6 +386,9 @@ if __name__ == "__main__":
     ####################################################################################################################
     # run actual optimization
     ####################################################################################################################
+    f_rtol = [0.0, 2.0]
+    step = [1.0, 1.0]
 
-    optimize_basis(basis,basis_ref,atomstruc,[step,step, step],maxiter =10, output_path= savepath
+
+    optimize_basis(basis,basis_ref,atomstruc, step,maxiter =10, output_path= savepath
                    ,minimize_kwargs = {"f_rtol" : f_rtol})
