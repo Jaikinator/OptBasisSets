@@ -5,6 +5,7 @@ Basis Sets.
 
 
 import torch
+from xitorch._core.packer import Packer
 from dqc.hamilton.intor import  overlap, LibcintWrapper
 from dqc.utils.datastruct import AtomCGTOBasis
 from dqc.api.parser import parse_moldesc
@@ -75,7 +76,7 @@ def crossoverlap(atomstruc : str, basis : list):
         atombases)  # creates a wrapper object to pass information on lower functions
     return overlap(wrap)
 
-def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Tensor):
+def projection_mat(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Tensor):
     """
     Calculate the Projection from the old to the new Basis:
          P = C^T S_12 S⁻¹_11 S_21 C
@@ -90,3 +91,41 @@ def projection(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch.Ten
     s21_s11s12c = torch.matmul(S_12, s11_s21c)
     P = torch.matmul(coeff.T, s21_s11s12c)
     return P
+
+"""
+Function for the Projection between two basis function.
+This function will be optimized by the xitorch minimizer.
+"""
+
+def projection(bparams: torch.Tensor, bpacker: Packer, ref_basis
+        , atomstruc_dqc: str, atomstruc: list, coeffM: torch.Tensor, occ_scf: torch.Tensor, num_gauss: torch.Tensor):
+    """
+    Function to optimize
+    :param bparams: torch.tensor with coeff of basis set for the basis that has to been optimized
+    :param bpacker: xitorch._core.packer.Packer object to create the CGTOBasis out of the bparams
+    :param bparams_ref: torch.tensor like bparams but now for the refenrenence basis on which to optimize.
+    :param bpacker_ref: xitorch._core.packer.Packer like Packer but now for the refenrenence basis on which to optimize.
+    :param atomstruc_dqc: string of atom structure
+    :return:
+    """
+
+    basis = bpacker.construct_from_tensor(
+        bparams)  # create a CGTOBasis Object (set informations about gradient, normalization etc)
+
+    basis_cross = blister(atomstruc, basis, ref_basis)
+
+    colap = crossoverlap(atomstruc_dqc, basis_cross)
+
+    # maximize overlap
+
+    _projt = projection_mat(coeffM, colap, num_gauss)
+
+    occ_scf = occ_scf[occ_scf > 0]
+
+    _projection = torch.zeros((_projt.shape[0], occ_scf.shape[0]), dtype=torch.float64)
+
+    for i in range(len(occ_scf)):
+        _projection[:, i] = torch.mul(_projt[:, i], occ_scf[i])
+
+    return -torch.trace(_projection) / torch.sum(occ_scf)
+
