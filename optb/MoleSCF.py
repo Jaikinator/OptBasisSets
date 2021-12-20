@@ -216,3 +216,5 @@ class MoleSCF:
         :return: float: total energy of the system calculated throw the dft calculation.
         """
         return self.dft.energy_tot()
+
+
