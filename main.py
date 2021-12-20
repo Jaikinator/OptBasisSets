@@ -4,6 +4,7 @@ import xitorch.optimize
 from optb import *
 from torch.utils.tensorboard import SummaryWriter
 from output import *
+import argparse
 
 # sys.stdout = open("out.txt", "w")
 ########################################################################################################################
@@ -63,12 +64,12 @@ def fcn(bparams: torch.Tensor, bpacker: xitorch._core.packer.Packer, ref_basis
     return -torch.trace(_projection) / torch.sum(occ_scf)
 
 
-def scf_dft_energy(basis, atomstruc):
+def scf_dft_energy(basis, atomstruc, atomstrucstr):
     mol = gto.Mole()
     mol.atom = atomstruc
     mol.unit = 'Bohr'  # in Angstrom
     mol.verbose = 6
-    mol.output = 'scf.out'
+    mol.output = f'scf_ownb_{atomstrucstr}.out'
     mol.symmetry = False
     mol.basis = basis
 
@@ -84,8 +85,8 @@ def scf_dft_energy(basis, atomstruc):
     mf.kernel()
     return mf.energy_tot()
 
-def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],step: float , maxiter = 100000000,
-                   method: str = "Adam" , minimize_kwargs: dict = {}, out_kwargs : dict = {}):
+def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],step: list[float] , maxiter = 100000000,
+                   method: str = "Adam" , output_path = None ,  minimize_kwargs: dict = {}, out_kwargs : dict = {}):
     """
     function to optimize basis functions.
     :param basis: basis which should be optimized
@@ -98,79 +99,286 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
     :param out_kwargs: kwargs to configure the output save functions
     :return: optimized basis
     """
+    try:
+        f_rtol = minimize_kwargs["f_rtol"]
+        minimize_kwargs.pop("f_rtol")
+        if type(f_rtol) is list and len(f_rtol) == 1:
+            f_rtol = float(f_rtol [0])
+    except:
+        f_rtol = 1e-8
 
-    bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc)
+    if type(step) is list and len(step) != len([f_rtol]):
+        f_rtol_arr = []
+        for i in range(len(step)):
+            f_rtol_arr.append(f_rtol)
+        f_rtol = f_rtol_arr
 
-    writerpath, outpath = conf_output(basis, basis_ref, atomstruc, step, f_rtol,**out_kwargs)
-    writer = SummaryWriter(writerpath)
+    if type(atomstruc) is list and type(step) is list:
 
-    print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc}")
+        if len(atomstruc) == len(step):
 
-    min_bparams = xitorch.optimize.minimize(fcn,
-                                            func_dict["bparams"],
-                                            (func_dict["bpacker"],
-                                             func_dict["ref_basis"],
-                                             func_dict["atomstruc_dqc"],
-                                             func_dict["atomstruc"],
-                                             func_dict["coeffM"],
-                                             func_dict["occ_scf"],
-                                             func_dict["num_gauss"],),
-                                            step=step,
-                                            method=method,
-                                            maxiter=maxiter,
-                                            verbose=True,
-                                            writer=writer, **minimize_kwargs)
+            for i in range(len(atomstruc)):
 
-    bsys1.get_SCF()
-    energy_small_basis = bsys1.SCF.get_tot_energy
-    energy_ref_basis = bsys2.SCF.get_tot_energy
+                bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc[i])
 
-    optbasis = bconv(min_bparams, func_dict["bpacker"])
-    optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc)
+                writerpath, outpath = conf_output(basis, basis_ref, atomstruc[i], step[i], f_rtol,
+                                                  outf= output_path, **out_kwargs)
+                writer = SummaryWriter(writerpath)
 
-    save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis, optbasis_energy,
-                atomstruc, step, maxiter, method, optkwargs = minimize_kwargs)
+                print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc[i]}")
 
-    return optbasis
+                min_bparams = xitorch.optimize.minimize(fcn,
+                                                        func_dict["bparams"],
+                                                        (func_dict["bpacker"],
+                                                         func_dict["ref_basis"],
+                                                         func_dict["atomstruc_dqc"],
+                                                         func_dict["atomstruc"],
+                                                         func_dict["coeffM"],
+                                                         func_dict["occ_scf"],
+                                                         func_dict["num_gauss"],),
+                                                        step=step[i],
+                                                        method=method,
+                                                        maxiter=maxiter,
+                                                        verbose=True,
+                                                        writer=writer,
+                                                        f_rtol = f_rtol[i]
+                                                        ,**minimize_kwargs)
+
+                bsys1.get_SCF(atomstrucstr = atomstruc[i])
+                energy_small_basis = bsys1.SCF.get_tot_energy
+                energy_ref_basis = bsys2.SCF.get_tot_energy
+
+                optbasis = bconv(min_bparams, func_dict["bpacker"])
+                optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc[i])
+
+                save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
+                            optbasis_energy,
+                            atomstruc[i], step[i], maxiter, method,f_rtol, optkwargs=minimize_kwargs)
+            return optbasis
+
+        else:
+            for atom in atomstruc:
+                bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atom)
+
+                for s in range(len(step)):
+
+                    writerpath, outpath = conf_output(basis, basis_ref, atom, step[s], f_rtol,
+                                                      outf=output_path, **out_kwargs)
+                    writer = SummaryWriter(writerpath)
+
+                    print(f"\n start optimization of {basis} Basis for the Molecule {atom}")
+
+                    min_bparams = xitorch.optimize.minimize(fcn,
+                                                            func_dict["bparams"],
+                                                            (func_dict["bpacker"],
+                                                             func_dict["ref_basis"],
+                                                             func_dict["atomstruc_dqc"],
+                                                             func_dict["atomstruc"],
+                                                             func_dict["coeffM"],
+                                                             func_dict["occ_scf"],
+                                                             func_dict["num_gauss"],),
+                                                            step=step[s],
+                                                            method=method,
+                                                            maxiter=maxiter,
+                                                            verbose=True,
+                                                            writer=writer,
+                                                            f_rtol = f_rtol[s],
+                                                            **minimize_kwargs)
+
+                    bsys1.get_SCF(atomstrucstr=atom)
+                    energy_small_basis = bsys1.SCF.get_tot_energy
+                    energy_ref_basis = bsys2.SCF.get_tot_energy
+
+                    optbasis = bconv(min_bparams, func_dict["bpacker"])
+                    optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atom)
+
+                    save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
+                                optbasis_energy,
+                                atom, step[s], maxiter, method ,f_rtol, optkwargs=minimize_kwargs)
+
+            return optbasis
+
+    elif type(atomstruc) is list and type(step) is float:
+
+        for i in range(len(atomstruc)):
+            bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc[i])
+
+            writerpath, outpath = conf_output(basis, basis_ref, atomstruc[i], step, f_rtol,
+                                              outf=output_path, **out_kwargs)
+            writer = SummaryWriter(writerpath)
+
+            print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc[i]}")
+
+            min_bparams = xitorch.optimize.minimize(fcn,
+                                                    func_dict["bparams"],
+                                                    (func_dict["bpacker"],
+                                                     func_dict["ref_basis"],
+                                                     func_dict["atomstruc_dqc"],
+                                                     func_dict["atomstruc"],
+                                                     func_dict["coeffM"],
+                                                     func_dict["occ_scf"],
+                                                     func_dict["num_gauss"],),
+                                                    step=step,
+                                                    method=method,
+                                                    maxiter=maxiter,
+                                                    verbose=True,
+                                                    writer=writer,
+                                                    f_rtol = f_rtol
+                                                    ,**minimize_kwargs)
+
+            bsys1.get_SCF(atomstrucstr=atomstruc[i])
+            energy_small_basis = bsys1.SCF.get_tot_energy
+            energy_ref_basis = bsys2.SCF.get_tot_energy
+
+            optbasis = bconv(min_bparams, func_dict["bpacker"])
+            optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc[i])
+
+            save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
+                        optbasis_energy,
+                        atomstruc[i], step, maxiter, method, f_rtol, optkwargs = minimize_kwargs)
+        return optbasis
+
+    elif type(atomstruc) is str and type(step) is list:
+
+        for i in range(len(step)):
+            bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc)
+
+            writerpath, outpath = conf_output(basis, basis_ref, atomstruc, step[i], f_rtol,
+                                              outf=output_path, **out_kwargs)
+            writer = SummaryWriter(writerpath)
+
+            print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc}")
+
+            print(atomstruc, step, f_rtol[i])
+
+            min_bparams = xitorch.optimize.minimize(fcn,
+                                                    func_dict["bparams"],
+                                                    (func_dict["bpacker"],
+                                                     func_dict["ref_basis"],
+                                                     func_dict["atomstruc_dqc"],
+                                                     func_dict["atomstruc"],
+                                                     func_dict["coeffM"],
+                                                     func_dict["occ_scf"],
+                                                     func_dict["num_gauss"],),
+                                                    step=step[i],
+                                                    method=method,
+                                                    maxiter=maxiter,
+                                                    verbose=True,
+                                                    writer=writer,
+                                                    f_rtol = f_rtol[i],**minimize_kwargs)
+
+            bsys1.get_SCF(atomstrucstr=atomstruc)
+            energy_small_basis = bsys1.SCF.get_tot_energy
+            energy_ref_basis = bsys2.SCF.get_tot_energy
+
+            optbasis = bconv(min_bparams, func_dict["bpacker"])
+            optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc)
+
+            save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
+                        optbasis_energy,
+                        atomstruc, step[i], maxiter, method,f_rtol = f_rtol, optkwargs=minimize_kwargs)
+        return optbasis
+
+    elif type(atomstruc) is str and type(step) is float:
+
+        bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc)
+
+        f_rtol = minimize_kwargs["f_rtol"]
+        print(f_rtol)
+        writerpath, outpath = conf_output(basis, basis_ref, atomstruc, step, f_rtol, **out_kwargs)
+        writer = SummaryWriter(writerpath)
+
+        print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc}")
+
+        min_bparams = xitorch.optimize.minimize(fcn,
+                                                func_dict["bparams"],
+                                                (func_dict["bpacker"],
+                                                 func_dict["ref_basis"],
+                                                 func_dict["atomstruc_dqc"],
+                                                 func_dict["atomstruc"],
+                                                 func_dict["coeffM"],
+                                                 func_dict["occ_scf"],
+                                                 func_dict["num_gauss"],),
+                                                step=step,
+                                                method=method,
+                                                maxiter=maxiter,
+                                                verbose=True,
+                                                writer=writer, **minimize_kwargs)
+
+        bsys1.get_SCF(atomstrucstr=atomstruc)
+        energy_small_basis = bsys1.SCF.get_tot_energy
+        energy_ref_basis = bsys2.SCF.get_tot_energy
+
+        optbasis = bconv(min_bparams, func_dict["bpacker"])
+        optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc)
+
+        save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis, optbasis_energy,
+                    atomstruc, step, maxiter, method,f_rtol = f_rtol, optkwargs=minimize_kwargs)
+
+        return optbasis
+
+    else:
+       raise "Something went wrong"
+
 
 if __name__ == "__main__":
+    savepath =  os.path.dirname(os.path.realpath(__file__))
+    ####################################################################################################################
+    # setup arg parser throw terminal inputs
+    ####################################################################################################################
 
+    parser = argparse.ArgumentParser(description='Optimize Basis')
 
     ####################################################################################################################
     # configure atomic optb:
     ####################################################################################################################
 
-    # atomstruc = [['H', [0.5, 0.0, 0.0]],
-    #              ['H',  [-0.5, 0.0, 0.0]]]
-
-    atomstruc = "bf"
+    parser.add_argument("--mol",dest="atomstruc", type = str, nargs="+",
+                        help='Name or set of names to define the atomic structure that you want to optimize.')
 
     ####################################################################################################################
-    # configure basis to optimize:
+    # configure basis to optimize and reference basis:
     ####################################################################################################################
 
-    basis = "STO-3G"
-
-    ####################################################################################################################
-    # configure reference basis:
-    ####################################################################################################################
-
-    basis_ref = "cc-pvtz"
-
-    ####################################################################################################################
-
-    bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc)
-
+    parser.add_argument('-b', "--basis", type=str, metavar="", nargs=2, default=["STO-3G", "cc-pvtz"],
+                        help='names of the two basis first has to the basis,'
+                             'you want to optimize. The second basis acts as reference basis.')
 
     ####################################################################################################################
     # set up xitorch.optimize.minimize
     ####################################################################################################################
-    step = 2e-5
-    maxiter = 100
-    f_rtol = 1e-12
+
+    parser.add_argument("--maxiter", type=int, nargs=1, default = 1e6)
+    parser.add_argument("-lr", "--steps", type=float, nargs='+', default = 2e-5,
+                        help="learning rate (if set you opt. the same atomic structures for multiple learning rates."
+                             " If len of atomstuc is the same as the len of -lr than each atomstruc get specific lr, "
+                             "otherwise the each atomstruc will be trained with every lr)")
+    parser.add_argument("--frtol", type= float, nargs='+', default = [1e-8],
+                        help="The relative tolerance of the norm of the input (if set you opt. " \
+                             "the same atomic structures for multiple frtol." \
+                             " If lr and frtol are sets than you opt the they pair together")
+
+    ####################################################################################################################
+    # parse arguments
+    ####################################################################################################################
+
+    args = parser.parse_args()
+
+    basis = args.basis[0]
+    basis_ref = args.basis[1]
+    step = args.steps
+    f_rtol = args.frtol
+    maxiter = int(args.maxiter)
+
+    atomstruc = args.atomstruc
+
+    if atomstruc is None:
+        atomstruc = "CH4"
+
 
     ####################################################################################################################
     # run actual optimization
     ####################################################################################################################
 
-    optimize_basis(basis,basis_ref,atomstruc,step,maxiter, minimize_kwargs = {"f_rtol" : f_rtol})
+    optimize_basis(basis,basis_ref,atomstruc,[step,step, step],maxiter =10, output_path= savepath
+                   ,minimize_kwargs = {"f_rtol" : f_rtol})
