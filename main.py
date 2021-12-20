@@ -112,7 +112,13 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
     except:
         f_rtol = [1e-8]
 
-    if type(step) is list and len(step) != len(f_rtol):
+    if type(step) is list and type(f_rtol) is float:
+        f_rtol_arr = []
+        for i in range(len(step)):
+            f_rtol_arr.append(f_rtol)
+        f_rtol = f_rtol_arr
+
+    elif type(step) is list and len(step) != len(f_rtol):
         f_rtol_arr = []
         for i in range(len(step)):
             f_rtol_arr.append(f_rtol)
@@ -199,7 +205,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
 
                     save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                                 optbasis_energy,
-                                atom, step[s], maxiter, method ,f_rtol, optkwargs=minimize_kwargs)
+                                atom, step[s], maxiter, method ,f_rtol[s], optkwargs=minimize_kwargs)
 
             return optbasis
 
@@ -355,7 +361,7 @@ if __name__ == "__main__":
     # set up xitorch.optimize.minimize
     ####################################################################################################################
 
-    parser.add_argument("--maxiter", type=int, nargs=1, default = 1e6)
+    parser.add_argument("--maxiter", type=int, default = 1e6)
     parser.add_argument("-lr", "--steps", type=float, nargs='+', default = 2e-5,
                         help="learning rate (if set you opt. the same atomic structures for multiple learning rates."
                              " If len of atomstuc is the same as the len of -lr than each atomstruc get specific lr, "
@@ -375,6 +381,7 @@ if __name__ == "__main__":
     basis_ref = args.basis[1]
     step = args.steps
     f_rtol = args.frtol
+    print(args.maxiter)
     maxiter = int(args.maxiter)
 
     atomstruc = args.atomstruc

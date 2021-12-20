@@ -82,9 +82,6 @@ def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, a
                   f"{b2}_energy": b2_energy,
                   f"{b1}_opt_energy": optbasis_energy}
 
-    if type(f_rtol) is list:    # takes care if f_rtol ist automatically a list
-        if f_rtol[0] == f_rtol[-1]:
-            f_rtol = f_rtol[0]
 
     mini_dict = {"learning rate": lr,
                  "maxiter": maxiter,
