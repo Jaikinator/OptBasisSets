@@ -4,7 +4,6 @@ import xitorch.optimize
 from torch.utils.tensorboard import SummaryWriter
 from optb.output import *
 
-import argparse
 
 def scf_dft_energy(basis, atomstruc, atomstrucstr):
     mol = gto.Mole()
@@ -269,73 +268,3 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
 
     else:
        raise "Something went wrong"
-
-
-if __name__ == "__main__":
-
-    savepath =  os.path.dirname(os.path.realpath(__file__))
-    _outf = os.path.join(savepath , "output")
-    if not os.path.exists(_outf):
-        os.mkdir(_outf)
-    savepath = _outf
-
-    ####################################################################################################################
-    # setup arg parser throw terminal inputs
-    ####################################################################################################################
-
-    parser = argparse.ArgumentParser(description='Optimize Basis')
-
-    ####################################################################################################################
-    # configure atomic optb:
-    ####################################################################################################################
-
-    parser.add_argument("--mol",dest="atomstruc", type = str, nargs="+",
-                        help='Name or set of names to define the atomic structure that you want to optimize.')
-
-    ####################################################################################################################
-    # configure basis to optimize and reference basis:
-    ####################################################################################################################
-
-    parser.add_argument('-b', "--basis", type=str, metavar="", nargs=2, default=["STO-3G", "cc-pvtz"],
-                        help='names of the two basis first has to the basis,'
-                             'you want to optimize. The second basis acts as reference basis.')
-
-    ####################################################################################################################
-    # set up xitorch.optimize.minimize
-    ####################################################################################################################
-
-    parser.add_argument("--maxiter", type=int, default = 1e6)
-    parser.add_argument("-lr", "--steps", type=float, nargs='+', default = 2e-5,
-                        help="learning rate (if set you opt. the same atomic structures for multiple learning rates."
-                             " If len of atomstuc is the same as the len of -lr than each atomstruc get specific lr, "
-                             "otherwise the each atomstruc will be trained with every lr)")
-    parser.add_argument("--frtol", type= float, nargs='+', default = 1e-8,
-                        help="The relative tolerance of the norm of the input (if set you opt. " \
-                             "the same atomic structures for multiple frtol." \
-                             " If lr and frtol are sets than you opt the they pair together")
-
-    ####################################################################################################################
-    # parse arguments
-    ####################################################################################################################
-
-    args = parser.parse_args()
-
-    basis = args.basis[0]
-    basis_ref = args.basis[1]
-    step = args.steps
-    f_rtol = args.frtol
-    print(args.maxiter)
-    maxiter = int(args.maxiter)
-
-    atomstruc = args.atomstruc
-
-    if atomstruc is None:
-        atomstruc = "CH4"
-
-
-    ####################################################################################################################
-    # run actual optimization
-    ####################################################################################################################
-
-    optimize_basis(basis,basis_ref,atomstruc, step,maxiter = maxiter, output_path= savepath
-                   ,minimize_kwargs = {"f_rtol" : f_rtol})
