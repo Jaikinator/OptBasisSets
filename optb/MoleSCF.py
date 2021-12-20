@@ -121,7 +121,11 @@ class MoleSCF:
         else:
             mol.symmetry = False
         if self.atomstrucstr is not None:
-            mol.output = f'scf_{self.basis}_{self.atomstrucstr}.out'
+            try:
+                mol.output = f'./output/scf_{self.basis}_{self.atomstrucstr}.out'  # try to save it in outputfolder
+            except:
+                mol.output = f'scf_{self.basis}_{self.atomstrucstr}.out' # save in home folder
+
         else:
             mol.output = f'scf_{self.basis}_{self.atomstruc}.out'
         # I don't know what I'am doing here:
