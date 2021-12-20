@@ -1,4 +1,5 @@
 from optb.optimize_basis import *
+from optb.data.avdata import elw417 ,elg2
 import argparse
 
 # sys.stdout = open("out.txt", "w")
@@ -40,7 +41,11 @@ if __name__ == "__main__":
 
     parser.add_argument("--mol",dest="atomstruc", type = str, nargs="+", metavar="",
                         help='Name or set of names to define the atomic structure that you want to optimize.')
-
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--allw417", action = "store_true",
+                        help='optimize every atom-structure that is available in the w4-17 database.')
+    group.add_argument("--allg2", action="store_true",
+                       help='optimize every atom-structure that is available in the g2 database.')
     ####################################################################################################################
     # configure basis to optimize and reference basis:
     ####################################################################################################################
@@ -84,8 +89,15 @@ if __name__ == "__main__":
     atomstruc = args.atomstruc
 
     if atomstruc is None:
-        #if you dont want to run the code over terminal change this one
-        atomstruc = "CH4"
+        if args.allw417:
+            atomstruc = elw417
+            print(f"{len(elw417)} molecules will be optimized")
+        elif args.allg2:
+            atomstruc = elg2
+            print(f"{len(elg2)} molecules will be optimized")
+        else:
+            #if you dont want to run the code over terminal change this one
+            atomstruc =  None
 
     ####################################################################################################################
     # create output folder to current path
