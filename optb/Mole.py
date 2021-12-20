@@ -14,12 +14,11 @@ from optb.AtomsDB import *
 class Molecarrier:
     basis: str
     atomstruc: list
-
     def _get_dqc(self, **kwargs):
         return MoleDQC(self.basis, self.atomstruc, **kwargs)
 
-    def _get_scf(self, **kwargs):
-        return MoleSCF(self.basis, self.atomstruc, **kwargs)
+    def _get_scf(self,atomstrucstr= None,  **kwargs):
+        return MoleSCF(self.basis, self.atomstruc, atomstrucstr= atomstrucstr,**kwargs)
 
 class Mole(Molecarrier):
     def __init__(self, basis: str, atomstruc: Union[list, str], db=None, scf=True, requires_grad=True, rearrange=True,
@@ -55,7 +54,7 @@ class Mole(Molecarrier):
             elementsarr = get_element_arr(atomstruc)
 
             if self.scf:
-                self.SCF = self._get_scf(elementsarr = elementsarr)
+                self.SCF = self._get_scf(atomstrucstr = None,elementsarr = elementsarr)
 
             self.DQC = self._get_dqc(elementsarr = elementsarr,
                                     requires_grad = requires_grad, rearrange = rearrange)
@@ -73,16 +72,16 @@ class Mole(Molecarrier):
             self.elementsarr = get_element_arr(self.atomstruc)
 
             if self.scf:
-                self.SCF = self._get_scf(elementsarr=self.elementsarr)
+                self.SCF = self._get_scf(atomstrucstr = self._atomstrucstr, elementsarr=self.elementsarr)
 
             self.DQC = self._get_dqc(elementsarr=self.elementsarr,
                                     requires_grad=requires_grad, rearrange=rearrange)
 
-    def get_SCF(self,**kwargs):
+    def get_SCF(self,atomstrucstr = None, **kwargs):
         """
         rerun scf calculation and ad it to Mole
         """
-        self.SCF = self._get_scf(elementsarr=self.elementsarr,**kwargs)
+        self.SCF = self._get_scf(atomstrucstr = atomstrucstr,elementsarr=self.elementsarr,**kwargs)
         return self
 
 def Mole_minimizer(basis, ref_basis, atomstruc):
