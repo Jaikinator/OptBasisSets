@@ -373,8 +373,8 @@ if __name__ == "__main__":
 
     basis = args.basis[0]
     basis_ref = args.basis[1]
-    # step = args.steps
-    # f_rtol = args.frtol
+    step = args.steps
+    f_rtol = args.frtol
     maxiter = int(args.maxiter)
 
     atomstruc = args.atomstruc
@@ -386,9 +386,6 @@ if __name__ == "__main__":
     ####################################################################################################################
     # run actual optimization
     ####################################################################################################################
-    f_rtol = [0.0, 2.0]
-    step = [1.0, 1.0]
 
-
-    optimize_basis(basis,basis_ref,atomstruc, step,maxiter =10, output_path= savepath
+    optimize_basis(basis,basis_ref,atomstruc, step,maxiter = maxiter, output_path= savepath
                    ,minimize_kwargs = {"f_rtol" : f_rtol})
