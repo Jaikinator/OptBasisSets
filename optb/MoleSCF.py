@@ -25,9 +25,9 @@ class MoleSCF:
 
         self.basis = basis  # just str of basis
         self.atomstruc = atomstruc
-        self.atomstrucstr  = atomstrucstr
+        self.atomstrucstr = atomstrucstr
 
-        if elementsarr == None:
+        if elementsarr is None:
             self.elements = get_element_arr(self.atomstruc)
         else:
             if type(elementsarr) is list:
