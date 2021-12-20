@@ -74,23 +74,46 @@ def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, a
                   f"{b2}_energy": b2_energy,
                   f"{b1}_opt_energy": optbasis_energy}
 
-    df = pd.DataFrame(energy_out, index=[0])
-    df_outp = f'{outdir}/{atomstruc}_opt_{b1}_energy.csv'
-    df.to_csv(df_outp)
-
-    mini_dict = {"learning rate" : lr,
-                 "maxiter" : maxiter,
+    mini_dict = {"learning rate": lr,
+                 "maxiter": maxiter,
                  "method": method,
-                 **optkwargs} #minimizer kwargs
+                 **optkwargs}  # minimizer kwargs
+
+    df = pd.DataFrame(energy_out, index=[0])
 
     df_mini = pd.DataFrame(mini_dict, index=[0])
-    df_outp_mini = f'{outdir}/{atomstruc}_learning_settings.csv'
-    df_mini.to_csv(df_outp_mini)
 
-    jsonbasisf = f'{outdir}/{atomstruc}_opt_{b1}_basis.json'
 
-    with open(jsonbasisf, 'w', encoding='utf-8') as file:
-        json.dump(optbasis, file, ensure_ascii=False, indent=4)
+    it = 1
+    exist = True
+
+    while exist: # if you run multipile calc take care to not overwrite the old output files
+        exist = os.path.exists(f"{outdir}/{atomstruc}_opt_{b1}_energy_00{it}.csv") \
+                or os.path.exists(f"{outdir}/{atomstruc}_opt_{b1}_energy_0{it}.csv")\
+                or os.path.exists(f"{outdir}/{atomstruc}_opt_{b1}_energy_{it}.csv")
+        if exist:
+            it += 1
+
+        else:
+
+            if it < 10:
+                df_outp = f'{outdir}/{atomstruc}_opt_{b1}_energy_00{it}.csv'
+                df_outp_mini = f'{outdir}/{atomstruc}_learning_settings_00{it}.csv'
+                jsonbasisf = f'{outdir}/{atomstruc}_opt_{b1}_basis_00{it}.json'
+            elif it >= 10 and it < 100:
+                df_outp = f'{outdir}/{atomstruc}_opt_{b1}_energy_0{it}.csv'
+                df_outp_mini = f'{outdir}/{atomstruc}_learning_settings_0{it}.csv'
+                jsonbasisf = f'{outdir}/{atomstruc}_opt_{b1}_basis_0{it}.json'
+            else:
+                df_outp = f'{outdir}/{atomstruc}_opt_{b1}_energy_0{it}.csv'
+                df_outp_mini = f'{outdir}/{atomstruc}_learning_settings_0{it}.csv'
+                jsonbasisf = f'{outdir}/{atomstruc}_opt_{b1}_basis_{it}.json'
+
+            df.to_csv(df_outp)
+            df_mini.to_csv(df_outp_mini)
+
+            with open(jsonbasisf, 'w', encoding='utf-8') as file:
+                json.dump(optbasis, file, ensure_ascii=False, indent=4)
 
 
 
