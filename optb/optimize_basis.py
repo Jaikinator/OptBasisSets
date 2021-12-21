@@ -71,13 +71,13 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
 
             for i in range(len(atomstruc)):
 
+                print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc[i]}")
+
                 bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc[i])
 
                 writerpath, outpath = conf_output(basis, basis_ref, atomstruc[i], step[i], f_rtol,
                                                   outf= output_path, **out_kwargs)
                 writer = SummaryWriter(writerpath)
-
-                print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc[i]}")
 
                 min_bparams = xitorch.optimize.minimize(projection,
                                                         func_dict["bparams"],
@@ -114,11 +114,11 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
 
                 for s in range(len(step)):
 
+                    print(f"\n start optimization of {basis} Basis for the Molecule {atom}")
+
                     writerpath, outpath = conf_output(basis, basis_ref, atom, step[s], f_rtol,
                                                       outf=output_path, **out_kwargs)
                     writer = SummaryWriter(writerpath)
-
-                    print(f"\n start optimization of {basis} Basis for the Molecule {atom}")
 
                     min_bparams = xitorch.optimize.minimize(projection,
                                                             func_dict["bparams"],
@@ -153,13 +153,14 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
     elif type(atomstruc) is list and type(step) is float:
 
         for i in range(len(atomstruc)):
+
+            print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc[i]}")
+
             bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc[i])
 
             writerpath, outpath = conf_output(basis, basis_ref, atomstruc[i], step, f_rtol,
                                               outf=output_path, **out_kwargs)
             writer = SummaryWriter(writerpath)
-
-            print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc[i]}")
 
             min_bparams = xitorch.optimize.minimize(projection,
                                                     func_dict["bparams"],
@@ -193,13 +194,14 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
     elif type(atomstruc) is str and type(step) is list:
 
         for i in range(len(step)):
+
+            print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc}")
+
             bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc)
 
             writerpath, outpath = conf_output(basis, basis_ref, atomstruc, step[i], f_rtol,
                                               outf=output_path, **out_kwargs)
             writer = SummaryWriter(writerpath)
-
-            print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc}")
 
             min_bparams = xitorch.optimize.minimize(projection,
                                                     func_dict["bparams"],
@@ -231,13 +233,13 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
 
     elif type(atomstruc) is str and type(step) is float:
 
+        print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc}")
+
         bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc)
 
         writerpath, outpath = conf_output(basis, basis_ref, atomstruc, step, f_rtol,
                                                   outf= output_path, **out_kwargs)
         writer = SummaryWriter(writerpath)
-
-        print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc}")
 
         min_bparams = xitorch.optimize.minimize(projection,
                                                 func_dict["bparams"],

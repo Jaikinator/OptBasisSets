@@ -93,9 +93,9 @@ def Mole_minimizer(basis, ref_basis, atomstruc):
     :return: dict
     """
 
-    systopt = Mole(basis, atomstruc, scf=False)  # optb to optimize
+    systopt = Mole(basis, atomstruc, scf = False)  # System of Basis to optimize
 
-    sys_ref = Mole(ref_basis, atomstruc, requires_grad=False)
+    sys_ref = Mole(ref_basis, atomstruc, requires_grad = False)
 
     def _num_gauss(system, ref_system):
         """
