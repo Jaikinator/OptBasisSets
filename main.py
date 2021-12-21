@@ -97,8 +97,8 @@ if __name__ == "__main__":
             print(f"{len(elg2)} molecules will be optimized")
         else:
             #if you dont want to run the code over terminal change this one
-            atomstruc = None
-            step = 2e-6
+            atomstruc = "bf"
+            step = 2e-3
             f_rtol = 2e-12
 
     ####################################################################################################################
