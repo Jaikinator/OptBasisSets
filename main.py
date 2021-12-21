@@ -1,5 +1,5 @@
 from optb.optimize_basis import *
-from optb.data.avdata import elw417 ,elg2
+from optb.data.preselected_avdata import elw417 ,elg2
 import argparse
 
 # sys.stdout = open("out.txt", "w")
@@ -97,7 +97,9 @@ if __name__ == "__main__":
             print(f"{len(elg2)} molecules will be optimized")
         else:
             #if you dont want to run the code over terminal change this one
-            atomstruc =  None
+            atomstruc = None
+            step = 2e-6
+            f_rtol = 2e-12
 
     ####################################################################################################################
     # create output folder to current path
@@ -111,6 +113,5 @@ if __name__ == "__main__":
     ####################################################################################################################
     # run actual optimization
     ####################################################################################################################
-
-    optimize_basis(basis,basis_ref,atomstruc, step,maxiter = 10, output_path= savepath
+    optimize_basis(basis,basis_ref,atomstruc, step,maxiter = maxiter, output_path= savepath
                    ,minimize_kwargs = {"f_rtol" : f_rtol})
