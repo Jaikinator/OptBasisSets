@@ -4,8 +4,8 @@ import xitorch.optimize
 
 from torch.utils.tensorboard import SummaryWriter
 from optb.output import *
-import numpy as np
-import math
+from numpy import any , isnan , nan
+
 
 def scf_dft_energy(basis, atomstruc, atomstrucstr):
     """
@@ -18,9 +18,9 @@ def scf_dft_energy(basis, atomstruc, atomstrucstr):
         for element in val:
             for orb in element:
                 if type(orb) is list:
-                    if np.any(np.isnan(orb)):
+                    if any(isnan(orb)):
                         warnings.warn("Your Basis includes NaN Values no energy calculated")
-                        return np.nan
+                        return nan
 
     mol = gto.Mole()
     mol.atom = atomstruc
