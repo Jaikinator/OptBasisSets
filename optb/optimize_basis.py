@@ -1,11 +1,27 @@
+import warnings
 
 import xitorch.optimize
 
 from torch.utils.tensorboard import SummaryWriter
 from optb.output import *
-
+import numpy as np
+import math
 
 def scf_dft_energy(basis, atomstruc, atomstrucstr):
+    """
+    runs a dft calculation using pyscf.
+    :return: total energy of the system.
+
+    """
+
+    for val in basis.values():
+        for element in val:
+            for orb in element:
+                if type(orb) is list:
+                    if np.any(np.isnan(orb)):
+                        warnings.warn("Your Basis includes NaN Values no energy calculated")
+                        return np.nan
+
     mol = gto.Mole()
     mol.atom = atomstruc
     mol.unit = 'Bohr'  # in Angstrom
