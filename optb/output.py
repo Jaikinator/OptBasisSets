@@ -24,7 +24,7 @@ def conf_output(basis,refbasis, atomstruc, step, rtol, outf = None, comments:str
     :param kwargs:
     :return: writer path for Tensorboard and path for other data
     """
-    print("outf", outf)
+
     if type(atomstruc) is not str:
         atomstruc = str(atomstruc)
 
@@ -55,7 +55,7 @@ def conf_output(basis,refbasis, atomstruc, step, rtol, outf = None, comments:str
 
     writerpath = f"{outdir}/TB_{atomstruc}_lr{step}_f_rtol{rtol}_{asctime()}"
 
-    print(outdir)
+    print("save output to: ", outdir)
     return writerpath, outdir
 
 def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, atomstruc, lr , maxiter,method = "Adam", f_rtol =1e-8 ,optkwargs : dict = {}):
@@ -121,8 +121,8 @@ def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, a
                 df_outp_mini = f'{outdir}/{atomstruc}_learning_settings_0{it}.csv'
                 jsonbasisf = f'{outdir}/{atomstruc}_opt_{b1}_basis_{it}.json'
 
-            df.to_csv(df_outp)
-            df_mini.to_csv(df_outp_mini)
+            df.to_csv(df_outp, na_rep='NaN',index=False)
+            df_mini.to_csv(df_outp_mini, na_rep='NaN', index=False)
 
             with open(jsonbasisf, 'w', encoding='utf-8') as file:
                 json.dump(optbasis, file, ensure_ascii=False, indent=4)
