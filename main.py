@@ -97,8 +97,8 @@ if __name__ == "__main__":
             print(f"{len(elg2)} molecules will be optimized")
         else:
             #if you dont want to run the code over terminal change this one
-            atomstruc = "bf"
-            step = 2e-3
+            atomstruc = "c2cl2"
+            step = 2e-6
             f_rtol = 2e-12
 
     ####################################################################################################################
@@ -113,5 +113,5 @@ if __name__ == "__main__":
     ####################################################################################################################
     # run actual optimization
     ####################################################################################################################
-    optimize_basis(basis,basis_ref,atomstruc, step,maxiter = maxiter, output_path= savepath
+    optimize_basis(basis,basis_ref,atomstruc, step,maxiter = maxiter, output_path= savepath, diverge= -1.0
                    ,minimize_kwargs = {"f_rtol" : f_rtol})

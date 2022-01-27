@@ -1,5 +1,6 @@
 import warnings
 
+import torch
 import xitorch.optimize
 
 from torch.utils.tensorboard import SummaryWriter
@@ -47,7 +48,7 @@ def scf_dft_energy(basis, atomstruc, atomstrucstr):
     return mf.energy_tot()
 
 def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],step: list[float] , maxiter = 100000000,
-                   method: str = "Adam" , output_path = None ,  minimize_kwargs: dict = {}, out_kwargs : dict = {}):
+                   method: str = "Adam", diverge = -1.0  , output_path = None ,  minimize_kwargs: dict = {}, out_kwargs : dict = {}):
     """
     function to optimize basis functions.
     :param basis: basis which should be optimized
@@ -56,10 +57,14 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
     :param step: learning rate
     :param maxiter: maximal learning steps
     :param method: method to minimize
+    :param diverge: for xitorch minimizer to check if the learning diverges
     :param minimize_kwargs: kwargs for the xitorch minimizer
     :param out_kwargs: kwargs to configure the output save functions
     :return: optimized basis
     """
+
+    #make diverge to tensor:
+    diverge = torch.tensor(diverge)
 
     try:
         f_rtol = minimize_kwargs["f_rtol"]
@@ -109,6 +114,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                         maxiter=maxiter,
                                                         verbose=True,
                                                         writer=writer,
+                                                        diverge = diverge,
                                                         f_rtol = f_rtol[i]
                                                         ,**minimize_kwargs)
 
@@ -150,6 +156,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                             maxiter=maxiter,
                                                             verbose=True,
                                                             writer=writer,
+                                                            diverge=diverge,
                                                             f_rtol = f_rtol[s],
                                                             **minimize_kwargs)
 
@@ -192,8 +199,9 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                     maxiter=maxiter,
                                                     verbose=True,
                                                     writer=writer,
-                                                    f_rtol = f_rtol
-                                                    ,**minimize_kwargs)
+                                                    diverge = diverge,
+                                                    f_rtol = f_rtol,
+                                                    **minimize_kwargs)
 
             bsys1.get_SCF(atomstrucstr=atomstruc[i])
             energy_small_basis = bsys1.SCF.get_tot_energy
@@ -233,7 +241,9 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                     maxiter=maxiter,
                                                     verbose=True,
                                                     writer=writer,
-                                                    f_rtol = f_rtol[i],**minimize_kwargs)
+                                                    diverge=diverge,
+                                                    f_rtol = f_rtol[i],
+                                                    **minimize_kwargs)
 
             bsys1.get_SCF(atomstrucstr=atomstruc)
             energy_small_basis = bsys1.SCF.get_tot_energy
@@ -270,7 +280,10 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                 method=method,
                                                 maxiter=maxiter,
                                                 verbose=True,
-                                                writer=writer, **minimize_kwargs)
+                                                writer=writer,
+                                                diverge=diverge,
+                                                f_rtol = f_rtol,
+                                                **minimize_kwargs)
 
         bsys1.get_SCF(atomstrucstr=atomstruc)
         energy_small_basis = bsys1.SCF.get_tot_energy
