@@ -48,7 +48,7 @@ def scf_dft_energy(basis, atomstruc, atomstrucstr):
     return mf.energy_tot()
 
 def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],step: list[float] , maxiter = 100000000,
-                   method: str = "Adam", diverge = -1.0  , output_path = None ,  minimize_kwargs: dict = {}, out_kwargs : dict = {}):
+                   method: str = "Adam", diverge = -1.0 ,maxdivattempts = 50 , output_path = None ,  minimize_kwargs: dict = {}, out_kwargs : dict = {}):
     """
     function to optimize basis functions.
     :param basis: basis which should be optimized
@@ -115,6 +115,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                         verbose=True,
                                                         writer=writer,
                                                         diverge = diverge,
+                                                        maxdivattempts = maxdivattempts,
                                                         f_rtol = f_rtol[i]
                                                         ,**minimize_kwargs)
 
@@ -157,6 +158,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                             verbose=True,
                                                             writer=writer,
                                                             diverge=diverge,
+                                                            maxdivattempts=maxdivattempts,
                                                             f_rtol = f_rtol[s],
                                                             **minimize_kwargs)
 
@@ -200,6 +202,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                     verbose=True,
                                                     writer=writer,
                                                     diverge = diverge,
+                                                    maxdivattempts=maxdivattempts,
                                                     f_rtol = f_rtol,
                                                     **minimize_kwargs)
 
@@ -242,6 +245,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                     verbose=True,
                                                     writer=writer,
                                                     diverge=diverge,
+                                                    maxdivattempts=maxdivattempts,
                                                     f_rtol = f_rtol[i],
                                                     **minimize_kwargs)
 
@@ -282,6 +286,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                 verbose=True,
                                                 writer=writer,
                                                 diverge=diverge,
+                                                maxdivattempts=maxdivattempts,
                                                 f_rtol = f_rtol,
                                                 **minimize_kwargs)
 

@@ -113,5 +113,6 @@ if __name__ == "__main__":
     ####################################################################################################################
     # run actual optimization
     ####################################################################################################################
-    optimize_basis(basis,basis_ref,atomstruc, step,maxiter = maxiter, output_path= savepath, diverge= -1.0
-                   ,minimize_kwargs = {"f_rtol" : f_rtol})
+    optimize_basis(basis,basis_ref,atomstruc,
+                   step,maxiter = maxiter, output_path= savepath,
+                   diverge= -1.0, maxdivattempts = 50, minimize_kwargs = {"f_rtol" : f_rtol})
