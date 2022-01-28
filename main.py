@@ -1,3 +1,12 @@
+"""
+This Projekt is based on the dqc package of Kasim, M. F.
+https://github.com/diffqc/dqc.git
+
+the optimizer is forked by
+https://github.com/xitorch/xitorch.git
+"""
+
+
 from optb.optimize_basis import *
 from optb.data.preselected_avdata import elw417 ,elg2
 import argparse
