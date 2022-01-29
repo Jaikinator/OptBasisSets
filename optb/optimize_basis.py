@@ -305,7 +305,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
 
     elif type(atomstruc) is list and not check_atomstruclist_of_str:
         msg = f"optimize_basis does not support list Atomtype of atomstruc (e.g. [element , [x, y, z]])" \
-              f" yet pls do it manually."#
+              f" yet pls do it manually."
         raise msg
 
     else:
