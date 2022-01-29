@@ -63,30 +63,31 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
     :return: optimized basis
     """
 
-    #make diverge to tensor:
-    diverge = torch.tensor(diverge)
-
-    try:
+    if minimize_kwargs["f_rtol"]:
         f_rtol = minimize_kwargs["f_rtol"]
         minimize_kwargs.pop("f_rtol")
         if type(f_rtol) is list and len(f_rtol) == 1:
-            f_rtol = [f_rtol[0]]
-    except:
-        f_rtol = [1e-8]
+            f_rtol = f_rtol[0]
+    else:
+        f_rtol = 1e-8
+
 
     if type(step) is list and type(f_rtol) is float:
         f_rtol_arr = []
         for i in range(len(step)):
             f_rtol_arr.append(f_rtol)
         f_rtol = f_rtol_arr
-
     elif type(step) is list and len(step) != len(f_rtol):
-        f_rtol_arr = []
-        for i in range(len(step)):
-            f_rtol_arr.append(f_rtol)
-        f_rtol = f_rtol_arr
+        msg = f"There are {len(step)} steps given but more than one or not an equal number of f_rtol as step. " \
+              f"f_rtol has to be one or equal amount as steps."
+        raise ValueError(msg)
 
-    if type(atomstruc) is list and type(step) is list:
+    if type(atomstruc) is list:
+        check_atomstruclist_of_str = all(isinstance(elem, str) for elem in atomstruc) #chek if list of atomstruc is list of molecule names
+    else:
+        check_atomstruclist_of_str = False
+
+    if type(step) is list and check_atomstruclist_of_str:
 
         if len(atomstruc) == len(step):
 
@@ -137,7 +138,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
 
                 for s in range(len(step)):
 
-                    print(f"\n start optimization of {basis} Basis for the Molecule {atom}")
+                    print(f"\n start optimization of {basis} Basis for the Molecule {atom}, with {len(bsys2.atomstruc)}")
 
                     writerpath, outpath = conf_output(basis, basis_ref, atom, step[s], f_rtol,
                                                       outf=output_path, **out_kwargs)
@@ -175,7 +176,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
 
             return optbasis
 
-    elif type(atomstruc) is list and type(step) is float:
+    elif check_atomstruclist_of_str and type(step) is float:
 
         for i in range(len(atomstruc)):
 
@@ -287,7 +288,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                 writer=writer,
                                                 diverge=diverge,
                                                 maxdivattempts=maxdivattempts,
-                                                f_rtol = f_rtol,
+                                                f_rtol= f_rtol,
                                                 **minimize_kwargs)
 
         bsys1.get_SCF(atomstrucstr=atomstruc)
@@ -301,6 +302,11 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                     atomstruc, step, maxiter, method,f_rtol = f_rtol, optkwargs=minimize_kwargs)
 
         return optbasis
+
+    elif type(atomstruc) is list and not check_atomstruclist_of_str:
+        msg = f"optimize_basis does not support list Atomtype of atomstruc (e.g. [element , [x, y, z]])" \
+              f" yet pls do it manually."#
+        raise msg
 
     else:
        raise "Something went wrong"
