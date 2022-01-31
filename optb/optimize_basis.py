@@ -135,7 +135,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
         else:
             for atom in atomstruc:
                 bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atom)
-
+                bsys1.get_SCF(atomstrucstr=atom)
                 for s in range(len(step)):
 
                     print(f"\n start optimization of {basis} Basis for the Molecule {atom}, with {len(bsys2.atomstruc)}")
@@ -163,7 +163,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                             f_rtol = f_rtol[s],
                                                             **minimize_kwargs)
 
-                    bsys1.get_SCF(atomstrucstr=atom)
+
                     energy_small_basis = bsys1.SCF.get_tot_energy
                     energy_ref_basis = bsys2.SCF.get_tot_energy
 
