@@ -5,8 +5,9 @@ https://github.com/diffqc/dqc.git
 the optimizer is forked by
 https://github.com/xitorch/xitorch.git
 """
-import optb.output
+
 from optb.optimize_basis import *
+from optb.output import merge_data
 from optb.data.preselected_avdata import elw417 ,elg2
 import argparse
 
