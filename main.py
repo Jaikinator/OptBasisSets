@@ -5,8 +5,7 @@ https://github.com/diffqc/dqc.git
 the optimizer is forked by
 https://github.com/xitorch/xitorch.git
 """
-
-
+import optb.output
 from optb.optimize_basis import *
 from optb.data.preselected_avdata import elw417 ,elg2
 import argparse
@@ -50,9 +49,12 @@ if __name__ == "__main__":
 
     parser.add_argument("--mol",dest="atomstruc", type = str, nargs="+", metavar="",
                         help='Name or set of names to define the atomic structure that you want to optimize.')
+
     group = parser.add_mutually_exclusive_group()
+
     group.add_argument("--allw417", action = "store_true",
                         help='optimize every atom-structure that is available in the w4-17 database.')
+
     group.add_argument("--allg2", action="store_true",
                        help='optimize every atom-structure that is available in the g2 database.')
     ####################################################################################################################
@@ -68,10 +70,12 @@ if __name__ == "__main__":
     ####################################################################################################################
 
     parser.add_argument("--maxiter", type=int, default = 1e6 , metavar="",help = "maximal learning iterations")
+
     parser.add_argument("-lr", "--steps", type=float, nargs='+' , metavar="", default = 2e-5,
                         help="learning rate (if set you opt. the same atomic structures for multiple learning rates."
                              " If len of atomstuc is the same as the len of -lr than each atomstruc get specific lr, "
                              "otherwise the each atomstruc will be trained with every lr)")
+
     parser.add_argument("--frtol", type= float, nargs='+', metavar="", default = 1e-8,
                         help="The relative tolerance of the norm of the input (if set you opt. " \
                              "the same atomic structures for multiple frtol." \
@@ -82,6 +86,9 @@ if __name__ == "__main__":
     ####################################################################################################################
     parser.add_argument("--saveto", type=str, nargs='+', metavar="", default= os.path.dirname(os.path.realpath(__file__)),
                         help="specify the path where you want to create the output folder (default is current path).")
+
+    group.add_argument("--cres", action="store_true",
+                       help='create result.csv files in output path.')
     ####################################################################################################################
     # parse arguments
     ####################################################################################################################
@@ -125,3 +132,6 @@ if __name__ == "__main__":
     optimize_basis(basis,basis_ref,atomstruc,
                    step,maxiter = maxiter, output_path= savepath,
                    diverge= -1.0, maxdivattempts = 50, minimize_kwargs = {"f_rtol" : f_rtol})
+
+    if args.cres:
+        merge_data()
