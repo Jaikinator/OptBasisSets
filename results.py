@@ -30,16 +30,16 @@ df.drop(indx, inplace=True)
 # plt.legend()
 
 print(df.columns.values)
-print(df)
-fig, ax = plt.subplots(1,1)
-ax.scatter(df.index,abs(df['STO-3G_energy']), label = 'STO-3G_energy')
-ax.scatter(df.index,abs(df["cc-pvtz_energy"]), label ="cc-pvtz_energy")
-ax.scatter(df.index,abs(df['STO-3G_opt_energy']), label ='STO-3G_opt_energy')
-ax.set_ylabel("energy")
-ax.set_xticks(df.index)
-ax.set_xticklabels(df["molecule"], rotation='vertical', fontsize=12)
-plt.legend()
 
+# fig, ax = plt.subplots(1,1)
+# ax.scatter(df.index,abs(df['STO-3G_energy']), label = 'STO-3G_energy')
+# ax.scatter(df.index,abs(df["cc-pvtz_energy"]), label ="cc-pvtz_energy")
+# ax.scatter(df.index,abs(df['STO-3G_opt_energy']), label ='STO-3G_opt_energy')
+# ax.set_ylabel("energy")
+# ax.set_xticks(df.index)
+# ax.set_xticklabels(df["molecule"], rotation='vertical', fontsize=12)
+# plt.legend()
+#
 
 plt.show()
 
@@ -53,9 +53,7 @@ for mol in molec:
     yval_sto3g_opt = df.loc[indx]["STO-3G_opt_energy"]
     yval_cc_pvtz = df.loc[indx]["cc-pvtz_energy"]
 
-    fig= plt.figure()
-    gs = fig.add_gridspec(1, 2, hspace=0, wspace=0)
-    (ax1, ax2)= gs.subplots(sharex='col', sharey='row')
+    fig, (ax1, ax2) = plt.subplots(1, 2)
 
     fig.suptitle(mol)
     ax1.scatter(xval, yval_sto3g, label = "STO-3G")
@@ -73,6 +71,7 @@ for mol in molec:
     ax2.set_xlabel("learning rate")
     ax2.grid(True, which="both", ls="-")
     fig.tight_layout()
+    fig.legend()
 
 
     fig.savefig(f"plots/{mol}.png", dpi = 500)
