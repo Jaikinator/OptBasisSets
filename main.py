@@ -145,7 +145,7 @@ if __name__ == "__main__":
     if tel:
         from knockknock import telegram_sender
         CHAT_ID: int = 504859111
-        token = "5125772445:AAGUMLauXFtqApWZuxo9Lc2767LNdtKDgnM"
+        token = ""
         @telegram_sender(token=token, chat_id=CHAT_ID)
         def tel_optimize_basis(inputdict: dict):
             optimize_basis(**inputdict)
