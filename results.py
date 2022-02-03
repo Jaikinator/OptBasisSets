@@ -41,7 +41,6 @@ print(df.columns.values)
 # plt.legend()
 #
 
-plt.show()
 
 molec = set(df["molecule"])
 if not os.path.exists("plots"):
@@ -63,15 +62,18 @@ for mol in molec:
     ax1.set_xlabel("learning rate")
     ax1.set_ylabel("energy")
     ax1.grid(True, which="both", ls="-")
-    ax1.grid()
+    ax1.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2),
+               fancybox=True, shadow=True, ncol=1, prop={'size': 8})
 
     ax2.scatter(xval, yval_sto3g, label = "STO-3G")
     ax2.scatter(xval, yval_sto3g_opt, label="STO-3G_opt")
     ax2.set_xscale("log")
     ax2.set_xlabel("learning rate")
     ax2.grid(True, which="both", ls="-")
+    ax2.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2),
+               fancybox=True, shadow=True, ncol=1, prop={'size': 8})
     fig.tight_layout()
-    fig.legend()
+
 
 
     fig.savefig(f"plots/{mol}.png", dpi = 500)
