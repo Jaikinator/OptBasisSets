@@ -90,6 +90,12 @@ if __name__ == "__main__":
 
     group.add_argument("--cres", action="store_true",
                        help='create result.csv files in output path.')
+
+    ####################################################################################################################
+    # setup save path
+    ####################################################################################################################
+    parser.add_argument('--telegram', metavar="", nargs=2, default=False,
+                        help='Input access token and chat_ID to get notified by telegram bot')
     ####################################################################################################################
     # parse arguments
     ####################################################################################################################
@@ -105,6 +111,11 @@ if __name__ == "__main__":
 
     atomstruc = args.atomstruc
 
+    if args.telegram:
+        tel = True
+        CHAT_ID: int = int(args.telegram[1])  # 504859111
+        token = str(args.telegram[0])
+
     if atomstruc is None:
         if args.allw417:
             atomstruc = elw417
@@ -117,6 +128,10 @@ if __name__ == "__main__":
             atomstruc = "bf"
             step = 2e-6
             f_rtol = 2e-8
+            tel = True
+
+
+
 
     ####################################################################################################################
     # create output folder to current path
@@ -141,11 +156,10 @@ if __name__ == "__main__":
                  "minimize_kwargs" : {"f_rtol": f_rtol}
                  }
 
-    tel = True
+
     if tel:
         from knockknock import telegram_sender
-        CHAT_ID: int = 504859111
-        token = ""
+
         @telegram_sender(token=token, chat_id=CHAT_ID)
         def tel_optimize_basis(inputdict: dict):
             optimize_basis(**inputdict)
