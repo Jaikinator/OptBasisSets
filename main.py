@@ -114,9 +114,9 @@ if __name__ == "__main__":
             print(f"{len(elg2)} molecules will be optimized")
         else:
             #if you dont want to run the code over terminal change this one
-            atomstruc = "c2cl2"
+            atomstruc = "bf"
             step = 2e-6
-            f_rtol = 2e-12
+            f_rtol = 2e-8
 
     ####################################################################################################################
     # create output folder to current path
@@ -130,9 +130,32 @@ if __name__ == "__main__":
     ####################################################################################################################
     # run actual optimization
     ####################################################################################################################
-    optimize_basis(basis,basis_ref,atomstruc,
-                   step,maxiter = maxiter, output_path= savepath,
-                   diverge= -1.0, maxdivattempts = 50, minimize_kwargs = {"f_rtol" : f_rtol})
+    inputdict = {"basis" : basis,
+                 "basis_ref": basis_ref,
+                 "atomstruc": atomstruc,
+                 "step": step,
+                 "maxiter": maxiter,
+                 "output_path": savepath,
+                 "diverge": -1.0,
+                 "maxdivattempts" : 50,
+                 "minimize_kwargs" : {"f_rtol": f_rtol}
+                 }
+
+    tel = True
+    if tel:
+        from knockknock import telegram_sender
+        CHAT_ID: int = 504859111
+        token = "5125772445:AAGUMLauXFtqApWZuxo9Lc2767LNdtKDgnM"
+        @telegram_sender(token=token, chat_id=CHAT_ID)
+        def tel_optimize_basis(inputdict: dict):
+            optimize_basis(**inputdict)
+            mol = inputdict["atomstruc"]
+            return f"Learning done for {mol}"
+
+    if tel:
+        tel_optimize_basis(inputdict)
+    else:
+        optimize_basis(**inputdict)
 
     if args.cres:
         merge_data()

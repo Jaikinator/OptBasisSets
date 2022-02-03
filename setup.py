@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='optb',
-    version='0.1',
+    version='0.1.1',
     packages=['optb', 'optb/data'],
     install_requires = ["pyscf~=2.0.1",
                         "ase~=3.22.1",
@@ -14,7 +14,8 @@ setup(
                         "torch ~=1.10.0",
                         "tensorboard >= 2.7.0",
                         "dqc @ git+https://github.com/Jaikinator/dqc.git", # fork of dqc nightly
-                        "xitorch @ git+https://github.com/Jaikinator/xitorch.git"],   # fork of xitorch nightly
+                        "xitorch @ git+https://github.com/Jaikinator/xitorch.git",   # fork of xitorch nightly
+                        "knockknock>=0.1.8.1"], # fork of telegram message
     url='https://github.com/Jaikinator/OptBasisSets',
     license='',
     author='Jacob ',
