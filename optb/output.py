@@ -58,7 +58,7 @@ def conf_output(basis,refbasis, atomstruc, step, rtol, outf = None, comments:str
     print("save output to: ", outdir)
     return writerpath, outdir
 
-def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, atomstruc, lr , maxiter,method = "Adam", f_rtol =1e-8 ,optkwargs : dict = {}):
+def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, atomstruc, lr , maxiter,method = "Adam", f_rtol =1e-8, misc: dict = {} ,optkwargs : dict = {}):
     """
     save data after minimization
     :param outdir: folder where data will be stored
@@ -84,11 +84,14 @@ def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, a
                   f"{b2}_energy": b2_energy,
                   f"{b1}_opt_energy": optbasis_energy}
 
+    if "best_x" in misc.keys():
+        misc.pop('best_x', None)
 
     mini_dict = {"learning rate": lr,
                  "maxiter": maxiter,
                  "method": method,
                  "f_rtol" : f_rtol,
+                 **misc,
                  **optkwargs}  # minimizer kwargs
 
     df = pd.DataFrame(energy_out, index=[0])

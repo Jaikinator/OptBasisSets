@@ -113,8 +113,19 @@ if __name__ == "__main__":
 
     if args.telegram:
         tel = True
-        CHAT_ID: int = int(args.telegram[1])  # 504859111
+        CHAT_ID: int = int(args.telegram[1])
         token = str(args.telegram[0])
+
+        from knockknock import telegram_sender
+
+        @telegram_sender(token=token, chat_id=CHAT_ID)
+        def tel_optimize_basis(inputdict: dict):
+            optimize_basis(**inputdict)
+            mol = inputdict["atomstruc"]
+            return f"Learning done for {mol}"
+
+    else:
+        tel = False
 
     if atomstruc is None:
         if args.allw417:
@@ -125,12 +136,9 @@ if __name__ == "__main__":
             print(f"{len(elg2)} molecules will be optimized")
         else:
             #if you dont want to run the code over terminal change this one
-            atomstruc = "bf"
+            atomstruc = "ethanol"
             step = 2e-6
             f_rtol = 2e-8
-            tel = True
-
-
 
 
     ####################################################################################################################
@@ -153,18 +161,10 @@ if __name__ == "__main__":
                  "output_path": savepath,
                  "diverge": -1.0,
                  "maxdivattempts" : 50,
+                 "get_misc": True,
                  "minimize_kwargs" : {"f_rtol": f_rtol}
                  }
 
-
-    if tel:
-        from knockknock import telegram_sender
-
-        @telegram_sender(token=token, chat_id=CHAT_ID)
-        def tel_optimize_basis(inputdict: dict):
-            optimize_basis(**inputdict)
-            mol = inputdict["atomstruc"]
-            return f"Learning done for {mol}"
 
     if tel:
         tel_optimize_basis(inputdict)

@@ -47,8 +47,13 @@ def scf_dft_energy(basis, atomstruc, atomstrucstr):
     mf.kernel()
     return mf.energy_tot()
 
-def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],step: list[float] , maxiter = 100000000,
-                   method: str = "Adam", diverge = -1.0 ,maxdivattempts = 50 , output_path = None ,  minimize_kwargs: dict = {}, out_kwargs : dict = {}):
+def optimize_basis(basis: str, basis_ref : str,
+                   atomstruc : Union[str, list],
+                   step: list[float] , maxiter = 100000000,
+                   method: str = "Adam", diverge = -1.0 ,
+                   maxdivattempts = 50 , output_path = None,
+                   get_misc = True,
+                   minimize_kwargs: dict = {}, out_kwargs : dict = {}):
     """
     function to optimize basis functions.
     :param basis: basis which should be optimized
@@ -58,6 +63,9 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
     :param maxiter: maximal learning steps
     :param method: method to minimize
     :param diverge: for xitorch minimizer to check if the learning diverges
+    :param maxdivattempts: attemps for divergens break up
+    :param output_path: path where output data will be saved
+    :param get_misc: adds Miscellaneous params to savefiles
     :param minimize_kwargs: kwargs for the xitorch minimizer
     :param out_kwargs: kwargs to configure the output save functions
     :return: optimized basis
@@ -101,7 +109,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                   outf= output_path, **out_kwargs)
                 writer = SummaryWriter(writerpath)
 
-                min_bparams = xitorch.optimize.minimize(projection,
+                min_bparams, misc = xitorch.optimize.minimize(projection,
                                                         func_dict["bparams"],
                                                         (func_dict["bpacker"],
                                                          func_dict["ref_basis"],
@@ -117,8 +125,9 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                         writer=writer,
                                                         diverge = diverge,
                                                         maxdivattempts = maxdivattempts,
-                                                        f_rtol = f_rtol[i]
-                                                        ,**minimize_kwargs)
+                                                        get_misc = get_misc,
+                                                        f_rtol = f_rtol[i],
+                                                        **minimize_kwargs)
 
                 bsys1.get_SCF(atomstrucstr = atomstruc[i])
                 energy_small_basis = bsys1.SCF.get_tot_energy
@@ -144,7 +153,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                       outf=output_path, **out_kwargs)
                     writer = SummaryWriter(writerpath)
 
-                    min_bparams = xitorch.optimize.minimize(projection,
+                    min_bparams, misc = xitorch.optimize.minimize(projection,
                                                             func_dict["bparams"],
                                                             (func_dict["bpacker"],
                                                              func_dict["ref_basis"],
@@ -160,6 +169,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                             writer=writer,
                                                             diverge=diverge,
                                                             maxdivattempts=maxdivattempts,
+                                                            get_misc=get_misc,
                                                             f_rtol = f_rtol[s],
                                                             **minimize_kwargs)
 
@@ -172,7 +182,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
 
                     save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                                 optbasis_energy,
-                                atom, step[s], maxiter, method ,f_rtol[s], optkwargs=minimize_kwargs)
+                                atom, step[s], maxiter, method ,f_rtol[s], misc = misc, optkwargs=minimize_kwargs)
 
             return optbasis
 
@@ -188,7 +198,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                               outf=output_path, **out_kwargs)
             writer = SummaryWriter(writerpath)
 
-            min_bparams = xitorch.optimize.minimize(projection,
+            min_bparams, misc = xitorch.optimize.minimize(projection,
                                                     func_dict["bparams"],
                                                     (func_dict["bpacker"],
                                                      func_dict["ref_basis"],
@@ -204,6 +214,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                     writer=writer,
                                                     diverge = diverge,
                                                     maxdivattempts=maxdivattempts,
+                                                    get_misc=get_misc,
                                                     f_rtol = f_rtol,
                                                     **minimize_kwargs)
 
@@ -216,7 +227,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
 
             save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                         optbasis_energy,
-                        atomstruc[i], step, maxiter, method, f_rtol, optkwargs = minimize_kwargs)
+                        atomstruc[i], step, maxiter, method, f_rtol, misc = misc, optkwargs = minimize_kwargs)
         return optbasis
 
     elif type(atomstruc) is str and type(step) is list:
@@ -231,7 +242,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                               outf=output_path, **out_kwargs)
             writer = SummaryWriter(writerpath)
 
-            min_bparams = xitorch.optimize.minimize(projection,
+            min_bparams, misc = xitorch.optimize.minimize(projection,
                                                     func_dict["bparams"],
                                                     (func_dict["bpacker"],
                                                      func_dict["ref_basis"],
@@ -247,6 +258,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                     writer=writer,
                                                     diverge=diverge,
                                                     maxdivattempts=maxdivattempts,
+                                                    get_misc=get_misc,
                                                     f_rtol = f_rtol[i],
                                                     **minimize_kwargs)
 
@@ -259,7 +271,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
 
             save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                         optbasis_energy,
-                        atomstruc, step[i], maxiter, method,f_rtol = f_rtol[i], optkwargs=minimize_kwargs)
+                        atomstruc, step[i], maxiter, method,f_rtol = f_rtol[i], misc = misc, optkwargs=minimize_kwargs)
         return optbasis
 
     elif type(atomstruc) is str and type(step) is float:
@@ -272,7 +284,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                   outf= output_path, **out_kwargs)
         writer = SummaryWriter(writerpath)
 
-        min_bparams = xitorch.optimize.minimize(projection,
+        min_bparams, misc = xitorch.optimize.minimize(projection,
                                                 func_dict["bparams"],
                                                 (func_dict["bpacker"],
                                                  func_dict["ref_basis"],
@@ -288,6 +300,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
                                                 writer=writer,
                                                 diverge=diverge,
                                                 maxdivattempts=maxdivattempts,
+                                                get_misc=get_misc,
                                                 f_rtol= f_rtol,
                                                 **minimize_kwargs)
 
@@ -299,7 +312,7 @@ def optimize_basis(basis: str, basis_ref : str, atomstruc : Union[str, list],ste
         optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc)
 
         save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis, optbasis_energy,
-                    atomstruc, step, maxiter, method,f_rtol = f_rtol, optkwargs=minimize_kwargs)
+                    atomstruc, step, maxiter, method,f_rtol = f_rtol,misc = misc, optkwargs=minimize_kwargs)
 
         return optbasis
 
