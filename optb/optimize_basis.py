@@ -147,7 +147,7 @@ def optimize_basis(basis: str, basis_ref : str,
                 bsys1.get_SCF(atomstrucstr=atom)
                 for s in range(len(step)):
 
-                    print(f"\n start optimization of {basis} Basis for the Molecule {atom}, with {len(bsys2.atomstruc)}")
+                    print(f"\n start optimization of {basis} Basis for the Molecule {atom} and learning-rate {step[s]}.")
 
                     writerpath, outpath = conf_output(basis, basis_ref, atom, step[s], f_rtol,
                                                       outf=output_path, **out_kwargs)
@@ -234,7 +234,7 @@ def optimize_basis(basis: str, basis_ref : str,
 
         for i in range(len(step)):
 
-            print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc}")
+            print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc} and learning-rate {step[i]}")
 
             bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc)
 
@@ -276,7 +276,7 @@ def optimize_basis(basis: str, basis_ref : str,
 
     elif type(atomstruc) is str and type(step) is float:
 
-        print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc}")
+        print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc} and learning-rate {step}")
 
         bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc)
 
