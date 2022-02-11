@@ -97,7 +97,7 @@ def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, a
                  **optkwargs}  # minimizer kwargs
 
     df = pd.DataFrame(energy_out, index=[0])
-    print("hallo ich bin dataframe", mini_dict)
+
     df_mini = pd.DataFrame(mini_dict, index=[0])
 
 
