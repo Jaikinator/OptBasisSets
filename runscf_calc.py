@@ -17,5 +17,8 @@ mf = scf.RKS(mol)
 mf.xc = "B3LYP"
 mf.kernel()
 
-
 print(mf.energy_tot())
+
+ovlp = mf.get_ovlp()
+
+print(sci.linalg.eigh(ovlp)[0])
