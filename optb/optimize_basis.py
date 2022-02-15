@@ -8,7 +8,7 @@ from optb.output import *
 from numpy import any , isnan , nan
 
 
-def scf_dft_energy(basis, atomstruc, atomstrucstr):
+def scf_dft_energy(basis :dict , atomstruc : list, atomstrucstr = None):
     """
     runs a dft calculation using pyscf.
     :return: total energy of the system.
@@ -29,9 +29,29 @@ def scf_dft_energy(basis, atomstruc, atomstrucstr):
     mol.verbose = 6
     if atomstrucstr is not None:
         if os.path.exists("./output"):
-            mol.output = f'./output/scf_optB_{atomstrucstr}.out'  # try to save it in outputfolder
+            # try to save it in outputfolder
+            savep = f'./output/scf_optB_{atomstrucstr}.out'
+            it = 0
+            exist = os.path.exists(savep)
+            while exist:  # if you run multipile calc take care to not overwrite the old output files
+
+                exist = os.path.exists(f"./output/scf_optB_{atomstrucstr}_00{it}.out") \
+                        or os.path.exists(f"./output/scf_optB_{atomstrucstr}_0{it}.out")\
+                        or os.path.exists(f"./output/scf_optB_{atomstrucstr}_{it}.out")
+                if exist:
+                    it += 1
+                else:
+                    if it < 10:
+                         mol.output = f"./output/scf_optB_{atomstrucstr}_00{it}.out"
+                    elif it >= 10 and it < 100:
+                        mol.output = f"./output/scf_optB_{atomstrucstr}_0{it}.out"
+                    else:
+                        mol.output = f"./output/scf_optB_{atomstrucstr}_{it}.out"
+
         else:
             mol.output = f'scf_optB_{atomstrucstr}.out'  # save in home folder
+    else:
+        mol.output = "scf.out"
     mol.symmetry = False
     mol.basis = basis
 
