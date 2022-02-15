@@ -3,11 +3,8 @@ configure output of a minimization
 """
 import os ,shutil
 import json
-
+import warnings
 from time import asctime
-
-from optb import *
-
 import pandas as pd
 
 def conf_output(basis,refbasis, atomstruc, step, rtol, outf = None, comments:str = "", overwrite = False, **kwargs):
@@ -139,8 +136,6 @@ def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, a
 """
 merge the resulting output files for better Legibility
 """
-
-
 
 def merge_mol(mol_path):
     """
