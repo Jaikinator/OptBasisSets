@@ -82,6 +82,9 @@ if __name__ == "__main__":
                              "the same atomic structures for multiple frtol." \
                              " If lr and frtol are sets than you opt the they pair together")
 
+    parser.add_argument("--method", type= str, metavar="", default="adam",
+                        help="Method for Optimization (adam, gd)")
+
     ####################################################################################################################
     # setup save path
     ####################################################################################################################
@@ -108,6 +111,7 @@ if __name__ == "__main__":
     f_rtol = args.frtol
 
     maxiter = int(args.maxiter)
+    method = str(args.method)
 
     atomstruc = args.atomstruc
 
@@ -158,6 +162,7 @@ if __name__ == "__main__":
                  "atomstruc": atomstruc,
                  "step": step,
                  "maxiter": maxiter,
+                 "method" : method
                  "output_path": savepath,
                  "diverge": -1.0,
                  "maxdivattempts" : 50,
