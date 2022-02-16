@@ -162,7 +162,7 @@ if __name__ == "__main__":
                  "atomstruc": atomstruc,
                  "step": step,
                  "maxiter": maxiter,
-                 "method" : method
+                 "method" : method,
                  "output_path": savepath,
                  "diverge": -1.0,
                  "maxdivattempts" : 50,
