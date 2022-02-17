@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='optb',
-    version='0.1.2.1',
+    version='0.1.2.2',
     packages=['optb', 'optb/data'],
     install_requires = ["pyscf~=2.0.1",
                         "ase~=3.22.1",
