@@ -94,7 +94,9 @@ def optimize_basis(basis: str, basis_ref : str,
     :param out_kwargs: kwargs to configure the output save functions
     :return: optimized basis
     """
-
+    if method == "gd":
+        diverge = torch.tensor(float("inf"))
+        warnings.warn("Attention you use gd as method diverge is not supported.")
     if minimize_kwargs["f_rtol"]:
         f_rtol = minimize_kwargs["f_rtol"]
         minimize_kwargs.pop("f_rtol")
