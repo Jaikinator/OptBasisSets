@@ -35,27 +35,32 @@ def scf_dft_energy(basis :dict , atomstruc : list, atomstrucstr = None):
         if os.path.exists("./output"):
             # try to save it in outputfolder
             savep = f'./output/scf_optB_{atomstrucstr}.out'
-            it = 0
+
             exist = os.path.exists(savep)
-            while exist:  # if you run multipile calc take care to not overwrite the old output files
+            if exist:
+                it = 1
+                while exist:  # if you run multipile calc take care to not overwrite the old output files
 
-                exist = os.path.exists(f"./output/scf_optB_{atomstrucstr}_00{it}.out") \
-                        or os.path.exists(f"./output/scf_optB_{atomstrucstr}_0{it}.out")\
-                        or os.path.exists(f"./output/scf_optB_{atomstrucstr}_{it}.out")
-                if exist:
-                    it += 1
-                else:
-                    if it < 10:
-                         mol.output = f"./output/scf_optB_{atomstrucstr}_00{it}.out"
-                    elif it >= 10 and it < 100:
-                        mol.output = f"./output/scf_optB_{atomstrucstr}_0{it}.out"
+                    exist = os.path.exists(f"./output/scf_optB_{atomstrucstr}_00{it}.out") \
+                            or os.path.exists(f"./output/scf_optB_{atomstrucstr}_0{it}.out")\
+                            or os.path.exists(f"./output/scf_optB_{atomstrucstr}_{it}.out")
+                    if exist:
+                        it += 1
                     else:
-                        mol.output = f"./output/scf_optB_{atomstrucstr}_{it}.out"
+                        if it < 10:
+                             mol.output = f"./output/scf_optB_{atomstrucstr}_00{it}.out"
+                        elif it >= 10 and it < 100:
+                            mol.output = f"./output/scf_optB_{atomstrucstr}_0{it}.out"
+                        else:
+                            mol.output = f"./output/scf_optB_{atomstrucstr}_{it}.out"
 
+            else:
+                mol.output = savep
         else:
             mol.output = f'scf_optB_{atomstrucstr}.out'  # save in home folder
     else:
         mol.output = "scf.out"
+
     mol.symmetry = False
     mol.basis = basis
 
@@ -94,9 +99,7 @@ def optimize_basis(basis: str, basis_ref : str,
     :param out_kwargs: kwargs to configure the output save functions
     :return: optimized basis
     """
-    if method == "gd":
-        diverge = torch.tensor(float("inf"))
-        warnings.warn("Attention you use gd as method diverge is not supported.")
+
     if minimize_kwargs["f_rtol"]:
         f_rtol = minimize_kwargs["f_rtol"]
         minimize_kwargs.pop("f_rtol")
