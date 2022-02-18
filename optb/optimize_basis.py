@@ -167,7 +167,7 @@ def optimize_basis(basis: str, basis_ref : str,
 
                 save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                             optbasis_energy,
-                            atomstruc[i], step[i], maxiter, method,f_rtol, optkwargs=minimize_kwargs)
+                            atomstruc[i], step[i], maxiter, method,f_rtol,func_dict["bpacker"], optkwargs=minimize_kwargs)
             return optbasis
 
         else:
@@ -211,7 +211,7 @@ def optimize_basis(basis: str, basis_ref : str,
 
                     save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                                 optbasis_energy,
-                                atom, step[s], maxiter, method ,f_rtol[s], misc = misc, optkwargs=minimize_kwargs)
+                                atom, step[s], maxiter, method ,f_rtol[s],func_dict["bpacker"], misc = misc, optkwargs=minimize_kwargs)
 
             return optbasis
 
@@ -256,7 +256,7 @@ def optimize_basis(basis: str, basis_ref : str,
 
             save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                         optbasis_energy,
-                        atomstruc[i], step, maxiter, method, f_rtol, misc = misc, optkwargs = minimize_kwargs)
+                        atomstruc[i], step, maxiter, method, f_rtol,func_dict["bpacker"], misc = misc, optkwargs = minimize_kwargs)
         return optbasis
 
     elif type(atomstruc) is str and type(step) is list:
@@ -300,7 +300,8 @@ def optimize_basis(basis: str, basis_ref : str,
 
             save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                         optbasis_energy,
-                        atomstruc, step[i], maxiter, method,f_rtol = f_rtol[i], misc = misc, optkwargs=minimize_kwargs)
+                        atomstruc, step[i], maxiter, method,f_rtol = f_rtol[i],packer=func_dict["bpacker"],
+                        misc = misc, optkwargs=minimize_kwargs)
         return optbasis
 
     elif type(atomstruc) is str and type(step) is float:
@@ -341,7 +342,7 @@ def optimize_basis(basis: str, basis_ref : str,
         optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc)
 
         save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis, optbasis_energy,
-                    atomstruc, step, maxiter, method,f_rtol = f_rtol,misc = misc, optkwargs=minimize_kwargs)
+                    atomstruc, step, maxiter, method,f_rtol = f_rtol, packer=func_dict["bpacker"] ,misc = misc, optkwargs=minimize_kwargs)
 
         return optbasis
 

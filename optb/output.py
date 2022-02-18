@@ -7,6 +7,9 @@ import warnings
 from time import asctime
 import pandas as pd
 
+import optb
+
+
 def conf_output(basis,refbasis, atomstruc, step, rtol, outf = None, comments:str = "", overwrite = False, **kwargs):
     """
     configure writer and path to save other data
@@ -55,7 +58,7 @@ def conf_output(basis,refbasis, atomstruc, step, rtol, outf = None, comments:str
     print("save output to: ", outdir)
     return writerpath, outdir
 
-def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, atomstruc, lr , maxiter,method = "Adam", f_rtol =1e-8, misc: dict = {} ,optkwargs : dict = {}):
+def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, atomstruc, lr , maxiter,method , f_rtol , packer, misc: dict = {} ,optkwargs : dict = {},):
     """
     save data after minimization
     :param outdir: folder where data will be stored
@@ -70,6 +73,7 @@ def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, a
     """
     if type(atomstruc) is not str:
         atomstruc = str(atomstruc)
+
     print(f"total energy scf with {b1} as initial basis:\n",
           b1_energy)
     print(f"total energy scf with {b2} as reference basis:\n",
@@ -82,7 +86,10 @@ def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, a
                   f"{b1}_opt_energy": optbasis_energy}
 
     if "best_x" in misc.keys():
+        best_x = optb.bconv(misc["best_x"],packer)
         misc.pop('best_x', None)
+    else:
+        best_x = optbasis
     if "best_f" in misc.keys():
         misc["best_f"] = float(misc["best_f"])
 
@@ -114,22 +121,35 @@ def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, a
                 df_outp = f'{outdir}/{atomstruc}_opt_{b1}_energy_00{it}.csv'
                 df_outp_mini = f'{outdir}/{atomstruc}_learning_settings_00{it}.csv'
                 jsonbasisf = f'{outdir}/{atomstruc}_opt_{b1}_basis_00{it}.json'
+                if optbasis != best_x:
+                    jsonbasisf_best = f'{outdir}/{atomstruc}_opt_{b1}_best_basis_00{it}.json'
+                else :
+                    jsonbasisf_best = False
             elif it >= 10 and it < 100:
                 df_outp = f'{outdir}/{atomstruc}_opt_{b1}_energy_0{it}.csv'
                 df_outp_mini = f'{outdir}/{atomstruc}_learning_settings_0{it}.csv'
                 jsonbasisf = f'{outdir}/{atomstruc}_opt_{b1}_basis_0{it}.json'
+                if optbasis != best_x:
+                    jsonbasisf_best = f'{outdir}/{atomstruc}_opt_{b1}_best_basis_0{it}.json'
+                else :
+                    jsonbasisf_best = False
             else:
                 df_outp = f'{outdir}/{atomstruc}_opt_{b1}_energy_0{it}.csv'
                 df_outp_mini = f'{outdir}/{atomstruc}_learning_settings_0{it}.csv'
                 jsonbasisf = f'{outdir}/{atomstruc}_opt_{b1}_basis_{it}.json'
-
+                if optbasis != best_x:
+                    jsonbasisf_best = f'{outdir}/{atomstruc}_opt_{b1}_best_basis_{it}.json'
+                else :
+                    jsonbasisf_best = False
             df.to_csv(df_outp, na_rep='NaN',index=False)
             df_mini.to_csv(df_outp_mini, na_rep='NaN', index=False)
 
             with open(jsonbasisf, 'w', encoding='utf-8') as file:
                 json.dump(optbasis, file, ensure_ascii=False, indent=4)
 
-
+            if jsonbasisf_best:
+                with open(jsonbasisf_best, 'w', encoding='utf-8') as file:
+                        json.dump(best_x, file, ensure_ascii=False, indent=4)
 
 
 
