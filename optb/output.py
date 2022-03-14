@@ -235,7 +235,12 @@ def merge_data(path=False, basis_dir=False, mol_dir=False, save=3):
             allmoldf["basis"] = basis1
             allmoldf["ref. basis"] = basis_ref
 
+            allmoldf = allmoldf.rename(columns={f"{basis12[0]}_energy": "initial_energy",
+                                                f"{basis12[1]}_energy": "ref_energy",
+                                                f"{basis12[0]}_opt_energy" : "opt_energy"})
+
             allbasisdf = allbasisdf.append(allmoldf, ignore_index=False)
+            # print(allbasisdf.columns.values)
         if save >= 1:
             allbasisdf.to_csv(f"{path}/results.csv", na_rep='NaN')
 
