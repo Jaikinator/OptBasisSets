@@ -190,6 +190,13 @@ def merge_mol(mol_path):
 def merge_data(path=False, basis_dir=False, mol_dir=False, save=3):
     """
     merges all output files of every output (of type .csv)
+    :param path: folder where data is stored
+    :param basis_dir: specify basis set if u want
+    :param mol_dir: specify molecule in basis set if u want
+    :param save: specify tree deepness where result files will be created
+                    1 equals to upper tree ==> just one result file in path. where everything is in
+                    2 equals to every basis folder ==> one result file each basis folder and 1
+                    3 every molecule in every basis gets one result file. +2 +1
     """
     if os.path.exists("output") and not path:
         path = os.path.abspath("output")
@@ -229,9 +236,8 @@ def merge_data(path=False, basis_dir=False, mol_dir=False, save=3):
             allmoldf["ref. basis"] = basis_ref
 
             allbasisdf = allbasisdf.append(allmoldf, ignore_index=False)
-
         if save >= 1:
-            allmoldf.to_csv(f"{path}/results.csv", na_rep='NaN')
+            allbasisdf.to_csv(f"{path}/results.csv", na_rep='NaN')
 
     else:
         # will do nothing.
