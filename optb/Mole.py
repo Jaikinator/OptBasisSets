@@ -84,7 +84,7 @@ class Mole(Molecarrier):
         self.SCF = self._get_scf(atomstrucstr = atomstrucstr,elementsarr=self.elementsarr,**kwargs)
         return self
 
-def Mole_minimizer(basis, ref_basis, atomstruc):
+def Mole_minimizer(basis, ref_basis, atomstruc, **kwargs):
     """
     Function that creates a dict with all relevant information to pass throw to the dqc optimizer
     :param basis: the basis you want to optimize
@@ -93,9 +93,9 @@ def Mole_minimizer(basis, ref_basis, atomstruc):
     :return: dict
     """
 
-    systopt = Mole(basis, atomstruc, scf = False)  # System of Basis to optimize
+    systopt = Mole(basis, atomstruc, scf = False,**kwargs)  # System of Basis to optimize
 
-    sys_ref = Mole(ref_basis, atomstruc, requires_grad = False)
+    sys_ref = Mole(ref_basis, atomstruc, requires_grad = False, **kwargs)
 
     def _num_gauss(system, ref_system):
         """
