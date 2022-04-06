@@ -107,7 +107,7 @@ def optimize_basis(basis: str,
     :return: optimized basis
     """
 
-    if minimize_kwargs["f_rtol"]:
+    if "f_rtol" in minimize_kwargs:
         f_rtol = minimize_kwargs["f_rtol"]
         minimize_kwargs.pop("f_rtol")
         if type(f_rtol) is list and len(f_rtol) == 1:
