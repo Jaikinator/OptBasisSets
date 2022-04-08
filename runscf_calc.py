@@ -3,8 +3,8 @@ import json
 from  optb import loadatomstruc
 import scipy as sci
 import numpy as np
-
-basis = json.load(open("output/STO-3G_cc-pvtz/ethanol/ethanol_opt_STO-3G_basis_011.json"))
+# json.load(open("output/STO-3G_cc-pvtz/ethanol/ethanol_opt_STO-3G_basis_012.json"))
+basis = "STO-3G"
 Mol = loadatomstruc("ethanol")
 mol = gto.Mole()
 mol.atom = Mol.atomstruc
