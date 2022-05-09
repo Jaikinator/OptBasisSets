@@ -25,7 +25,7 @@ def blister(atomstruc : list, basis : dict, refbasis :dict):
     bref_arr = [refbasis[elem[i]] for i in range(len(elem))]
     return b_arr + bref_arr
 
-def cross_selcet(crossmat : torch.Tensor, num_gauss : torch.Tensor):
+def cross_select(crossmat : torch.Tensor, num_gauss : torch.Tensor):
     """
     select the cross overlap matrix part.
         S  = [b1*b1 , b1*b2] = [S_11 , S_12]
@@ -85,7 +85,7 @@ def projection_mat(coeff : torch.Tensor, colap : torch.Tensor, num_gauss : torch
     :param num_gauss: array with length of the basis sets
     :return: Projection Matrix
     """
-    S_11, S_12, S_21, _ = cross_selcet(colap, num_gauss)
+    S_11, S_12, S_21, _ = cross_select(colap, num_gauss)
     s21_c = torch.matmul(S_21, coeff)
     s11_s21c = torch.matmul(torch.inverse(S_11), s21_c)
     s21_s11s12c = torch.matmul(S_12, s11_s21c)
