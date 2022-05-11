@@ -18,12 +18,14 @@ class AtomsDB:
     """
     Class to store Data form Databases
     """
-    atomstrucstr: str
-    atomstruc: list
-    mult: int
-    charge: int
-    energy: float
-    molecule: object = field(repr=False)
+    atomstrucstr: str # molecule name
+    db: str    # database name
+    natoms: int    # number of atoms in molecule
+    atomstruc: list # list of atom positions in molecule
+    mult: int     # multiplicity of molecule
+    charge: int   # charge of molecule
+    energy: float # energy of molecule
+    molecule: object = field(repr=False) # molecule object from ase or w417db
 
 
 
@@ -53,7 +55,7 @@ def loadatomstruc(atomstrucstr: Union[list, str], db=None, preselected=True):
 
     def from_W417(atomstrucstr):
         molec = W417(atomstrucstr)
-        return AtomsDB(atomstrucstr, molec.atom_pos, molec.mult, molec.charge,
+        return AtomsDB(atomstrucstr,"w417", len(molec.atom_pos), molec.atom_pos, molec.mult, molec.charge,
                        molec.energy, molec.molecule)
 
     def from_g2(atomstrucstr):
@@ -62,7 +64,7 @@ def loadatomstruc(atomstrucstr: Union[list, str], db=None, preselected=True):
         mult = sum(molec.get_initial_magnetic_moments()) + 1
         charge = sum(molec.get_initial_charges())
         energy = None
-        return AtomsDB(atomstrucstr, atomstruc, mult, charge, energy, molec)
+        return AtomsDB(atomstrucstr,"g2", len(atomstruc),atomstruc, mult, charge, energy, molec)
 
     def dberror():
         if db is None:
