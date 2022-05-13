@@ -105,4 +105,4 @@ dfdf = dfdf[['molecule', 'basis', 'ref. basis', 'best rel. improvement %', 'mean
              'opt_energy', 'initial_energy', 'ref_energy', 'optb-initial', 'reference-initial', 'method',
              'learning rate', 'maxiter', 'f_rtol', 'best_f', 'best_df', 'best_i',]]
 
-dfdf.to_csv("evaluation/best_res.csv", na_rep='NaN',index=False)
+dfdf.to_csv("evaluation/best_res_old.csv", na_rep='NaN',index=False)
