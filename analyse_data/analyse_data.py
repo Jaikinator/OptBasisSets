@@ -149,7 +149,14 @@ def select_db(df,db):
     else:
         raise ValueError("The database must be local or remote")
 
+def drop_wrong_learning(df):
+    drop_to_big = df[df["ref-opb [hartree /atom]"] < df["ref-init [hartree /atom]"]].index
+    print("len df old", len(df))
 
+    df = df.drop(drop_to_big)
+    df.reset_index(drop=True, inplace=True)
+    print("len df new", len(df))
+    return df
 def get_best_res_mol(df, db ="w417"):
     """
     Get the best result for each molecule and basis variation.
@@ -159,6 +166,8 @@ def get_best_res_mol(df, db ="w417"):
     _df = select_db(_df, db)
     _df = drop_small_best_i(_df, threshold= 10)
     _df = remove_SCF_not_converged(_df, threshold=10)
+    _df = drop_wrong_learning(_df)
+
     out_df = pd.DataFrame(columns = _df.columns.values)
 
     for basisv in set(_df["basis_variation"]):
@@ -177,6 +186,7 @@ def get_average_impact_bv(df):
     mean_imp_arr = []
     mean_total_arr = []
     basis_var_arr = []
+
     for var in set(df["basis_variation"]):
         ind_val = df[df["basis_variation"] == var].index
         mean_val = df["ref-opb [hartree /atom]"][ind_val].mean()
@@ -204,11 +214,22 @@ def get_average_impact_bv(df):
 
 path = "/nfs/data-013/jaikinator/PycharmProjects/OptBasisSets/analyse_data/evaluation/best_results_w417.csv"
 df = pd.read_csv(path,index_col=0).reset_index(drop=True)
-df = get_average_impact_bv(df)
-df["mean energy difference [hartree/atom]"] = df["mean energy difference [hartree/atom]"].abs()
-df["ref - init energy difference [hartree/atom]"] = df["ref - init energy difference [hartree/atom]"].abs()
+df_mean = get_average_impact_bv(df)
 
+df_mean["mean energy difference [hartree/atom]"] = df_mean["mean energy difference [hartree/atom]"].abs()
+df_mean["ref - init energy difference [hartree/atom]"] = df_mean["ref - init energy difference [hartree/atom]"].abs()
+
+df_new = df[df["basis_variation"] == "('STO-3G', 'cc-pvtz')"]
+df_new["diff of diff [hartree/atom]"] = df_new["ref-opb [hartree /atom]"] - df_new["ref-init [hartree /atom]"]
+print(df_new)
+fig1 = px.histogram(df_new, x="diff of diff [hartree/atom]", nbins=50)
+fig1.show()
 #plotly bar plot with two y axis
+
+# fig1 = px.scatter(df_new, x="ref-opb [hartree /atom]", y="ref-init [hartree /atom]",
+#                  hover_name="molecule", hover_data= df.columns.values
+#                  ,color='method', size='number_of_atoms', marginal_x="histogram", marginal_y="histogram")
+# fig1.show()
 
 
 
@@ -225,22 +246,21 @@ df["ref - init energy difference [hartree/atom]"] = df["ref - init energy differ
 #         color="#000066"
 #     )
 # )
-
-print(df)
-
-fig = go.Figure(data=[
-    go.Bar(name='mean energy difference between the reference and the optimised basis', x=df["basis_variation"], y=df["mean energy difference [hartree/atom]"]),
-    go.Bar(name='mean energy difference between two basis sets', x=df["basis_variation"], y=df["ref - init energy difference [hartree/atom]"])
-])
-# Change the bar mode
-fig.update_layout(barmode='group',
-                  title_text="Average impact of optimisation",
-                  xaxis_title="Basis variation",
-                  yaxis_title="Energy difference [Hartree/atom]",
-                  font=dict(
-                      family="Courier New, monospace",
-                      size=18,
-                      color="#000066"
-                  )
-                  )
-fig.write_html("evaluation/avg_energy_bv.html")
+# print(df)
+#
+# fig = go.Figure(data=[
+#     go.Bar(name='mean energy difference between the reference and the optimised basis', x=df["basis_variation"], y=df["mean energy difference [hartree/atom]"]),
+#     go.Bar(name='mean energy difference between two basis sets', x=df["basis_variation"], y=df["ref - init energy difference [hartree/atom]"])
+# ])
+# # Change the bar mode
+# fig.update_layout(barmode='group',
+#                   title_text="Average impact of optimisation",
+#                   xaxis_title="Basis variation",
+#                   yaxis_title="Energy difference [Hartree/atom]",
+#                   font=dict(
+#                       family="Courier New, monospace",
+#                       size=18,
+#                       color="#000066"
+#                   )
+#                   )
+# fig.write_html("evaluation/avg_energy_bv.html")
