@@ -2,13 +2,13 @@ from setuptools import setup
 
 setup(
     name='optb',
-    version='0.1.2.5',
+    version='0.1.3.0',
     packages=['optb', 'optb/data'],
     install_requires = ["pyscf~=2.0.1",
                         "ase~=3.22.1",
                         "setuptools~=58.0.4",
-                        "numpy~=1.21.2",
-                        "pandas ~= 1.3.4",
+                        "numpy >= 1.21.2",
+                        "pandas >= 1.3.4",
                         "ase==3.22.1",
                         "basis-set-exchange==0.9",
                         "torch ~=1.10.0",
