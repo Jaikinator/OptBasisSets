@@ -58,7 +58,8 @@ def conf_output(basis,refbasis, atomstruc, step, rtol, outf = None, comments:str
     print("save output to: ", outdir)
     return writerpath, outdir
 
-def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, atomstruc, lr , maxiter,method , f_rtol , packer, misc: dict = {} ,optkwargs : dict = {},):
+def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, atomstruc, lr ,
+                maxiter, method , f_rtol , packer, molout, misc: dict = {} ,optkwargs : dict = {},):
     """
     save data after minimization
     :param outdir: folder where data will be stored
@@ -97,6 +98,7 @@ def save_output(outdir, b1, b1_energy,b2, b2_energy,optbasis, optbasis_energy, a
                  "maxiter": maxiter,
                  "method": method,
                  "f_rtol" : f_rtol,
+                 "molout": molout,
                  **misc,
                  **optkwargs}  # minimizer kwargs
 

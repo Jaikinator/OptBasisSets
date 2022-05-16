@@ -12,7 +12,7 @@ from optb.Mole import Mole_minimizer
 from optb.basis_converter import bconv
 
 
-def scf_dft_energy(basis :dict , atomstruc : list, atomstrucstr = None):
+def scf_dft_energy(basis :dict , atomstruc : list, atomstrucstr = None, outpath : str = "./"):
     """
     runs a dft calculation using pyscf.
     :return: total energy of the system.
@@ -41,18 +41,18 @@ def scf_dft_energy(basis :dict , atomstruc : list, atomstrucstr = None):
                 it = 1
                 while exist:  # if you run multipile calc take care to not overwrite the old output files
 
-                    exist = os.path.exists(f"./output/scf_optB_{atomstrucstr}_00{it}.out") \
-                            or os.path.exists(f"./output/scf_optB_{atomstrucstr}_0{it}.out")\
-                            or os.path.exists(f"./output/scf_optB_{atomstrucstr}_{it}.out")
+                    exist = os.path.exists(f"{outpath}/scf_optB_{atomstrucstr}_00{it}.out") \
+                            or os.path.exists(f"{outpath}/scf_optB_{atomstrucstr}_0{it}.out")\
+                            or os.path.exists(f"{outpath}/scf_optB_{atomstrucstr}_{it}.out")
                     if exist:
                         it += 1
                     else:
                         if it < 10:
-                             mol.output = f"./output/scf_optB_{atomstrucstr}_00{it}.out"
+                             mol.output = f"{outpath}/scf_optB_{atomstrucstr}_00{it}.out"
                         elif it >= 10 and it < 100:
-                            mol.output = f"./output/scf_optB_{atomstrucstr}_0{it}.out"
+                            mol.output = f"{outpath}/scf_optB_{atomstrucstr}_0{it}.out"
                         else:
-                            mol.output = f"./output/scf_optB_{atomstrucstr}_{it}.out"
+                            mol.output = f"{outpath}/scf_optB_{atomstrucstr}_{it}.out"
 
             else:
                 mol.output = savep
@@ -74,7 +74,7 @@ def scf_dft_energy(basis :dict , atomstruc : list, atomstrucstr = None):
     mf = scf.RKS(mol)
     mf.xc = 'B3LYP'
     mf.kernel()
-    return mf.energy_tot()
+    return mf.energy_tot(), os.path.basename(mol.output)
 
 def optimize_basis(basis: str,
                    basis_ref : str,
@@ -173,11 +173,11 @@ def optimize_basis(basis: str,
                 energy_ref_basis = bsys2.SCF.get_tot_energy
 
                 optbasis = bconv(min_bparams, func_dict["bpacker"])
-                optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc[i])
+                optbasis_energy, molout = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc[i], outpath)
 
-                save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
-                            optbasis_energy,
-                            atomstruc[i], step[i], maxiter, method,f_rtol,func_dict["bpacker"], optkwargs=minimize_kwargs)
+                save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,optbasis_energy,
+                            atomstruc[i], step[i], maxiter, method,f_rtol,func_dict["bpacker"],
+                            molout, optkwargs=minimize_kwargs)
             return optbasis
 
         else:
@@ -218,11 +218,12 @@ def optimize_basis(basis: str,
                     energy_ref_basis = bsys2.SCF.get_tot_energy
 
                     optbasis = bconv(min_bparams, func_dict["bpacker"])
-                    optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atom)
+                    optbasis_energy , molout = scf_dft_energy(optbasis, bsys1.atomstruc, atom, outpath)
 
                     save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                                 optbasis_energy,
-                                atom, step[s], maxiter, method ,f_rtol[s],func_dict["bpacker"], misc = misc, optkwargs = minimize_kwargs)
+                                atom, step[s], maxiter, method ,f_rtol[s],func_dict["bpacker"],molout
+                                ,misc = misc, optkwargs = minimize_kwargs)
 
             return optbasis
 
@@ -264,11 +265,12 @@ def optimize_basis(basis: str,
             energy_ref_basis = bsys2.SCF.get_tot_energy
 
             optbasis = bconv(min_bparams, func_dict["bpacker"])
-            optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc[i])
+            optbasis_energy, molout = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc[i], outpath)
 
             save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                         optbasis_energy,
-                        atomstruc[i], step, maxiter, method, f_rtol,func_dict["bpacker"], misc = misc, optkwargs = minimize_kwargs)
+                        atomstruc[i], step, maxiter, method, f_rtol,func_dict["bpacker"],molout,
+                        misc = misc, optkwargs = minimize_kwargs)
         return optbasis
 
     elif type(atomstruc) is str and type(step) is list:
@@ -309,11 +311,11 @@ def optimize_basis(basis: str,
             energy_ref_basis = bsys2.SCF.get_tot_energy
 
             optbasis = bconv(min_bparams, func_dict["bpacker"])
-            optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc)
+            optbasis_energy , molout = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc, outpath)
 
             save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                         optbasis_energy,
-                        atomstruc, step[i], maxiter, method,f_rtol = f_rtol[i],packer=func_dict["bpacker"],
+                        atomstruc, step[i], maxiter, method, f_rtol = f_rtol[i], packer=func_dict["bpacker"],molout=molout,
                         misc = misc, optkwargs=minimize_kwargs)
         return optbasis
 
@@ -353,10 +355,10 @@ def optimize_basis(basis: str,
         energy_ref_basis = bsys2.SCF.get_tot_energy
 
         optbasis = bconv(min_bparams, func_dict["bpacker"])
-        optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc)
+        optbasis_energy, molout = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc, outpath)
 
         save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis, optbasis_energy,
-                    atomstruc, step, maxiter, method,f_rtol = f_rtol, packer=func_dict["bpacker"] ,misc = misc, optkwargs=minimize_kwargs)
+                    atomstruc, step, maxiter, method,f_rtol = f_rtol, packer=func_dict["bpacker"], molout = molout ,misc = misc, optkwargs=minimize_kwargs)
 
         return optbasis
 
