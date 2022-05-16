@@ -62,7 +62,7 @@ if __name__ == "__main__":
     # configure basis to optimize and reference basis:
     ####################################################################################################################
 
-    parser.add_argument('-b', "--basis", type=str, metavar="", nargs=2, default=["STO-3G", "cc-pvtz"],
+    parser.add_argument('-b', "--basis", type=str, metavar="", nargs=2, default=["STO-3G", "3-21G"],
                         help='names of the two basis first has to the basis,'
                              'you want to optimize. The second basis acts as reference basis.')
 
@@ -71,6 +71,8 @@ if __name__ == "__main__":
     ####################################################################################################################
 
     parser.add_argument("--maxiter", type=int, default = 1e6 , metavar="",help = "maximal learning iterations")
+
+    parser.add_argument("--miniter", type=int,  default = 1e4, metavar="", help="minimal learning iterations")
 
     parser.add_argument("-lr", "--steps", type=float, nargs='+' , metavar="", default = 2e-5,
                         help="learning rate (if set you opt. the same atomic structures for multiple learning rates."
@@ -112,6 +114,7 @@ if __name__ == "__main__":
 
     maxiter = int(args.maxiter)
     method = str(args.method)
+    miniter = int(args.miniter)
 
     atomstruc = args.atomstruc
 
@@ -140,9 +143,9 @@ if __name__ == "__main__":
             print(f"{len(elg2)} molecules will be optimized")
         else:
             #if you dont want to run the code over terminal change this one
-            atomstruc = "ethanol"
-            step = 2e-6
-            f_rtol = 2e-8
+            atomstruc = "co"
+            step = 2e-8
+            f_rtol = 1
 
 
     ####################################################################################################################
@@ -162,6 +165,7 @@ if __name__ == "__main__":
                  "atomstruc": atomstruc,
                  "step": step,
                  "maxiter": maxiter,
+                 "miniter": miniter,
                  "method" : method,
                  "output_path": savepath,
                  "diverge": -1.0,

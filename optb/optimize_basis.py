@@ -80,7 +80,8 @@ def optimize_basis(basis: str,
                    basis_ref : str,
                    atomstruc : Union[str, list],
                    step: list[float],
-                   maxiter = 100000000,
+                   maxiter : int = 100000000,
+                   miniter : int = 1 ,
                    method: str = "Adam",
                    diverge = -1.0 ,
                    maxdivattempts = 50,
@@ -96,6 +97,7 @@ def optimize_basis(basis: str,
     :param atomstruc: Molecule Structure
     :param step: learning rate
     :param maxiter: maximal learning steps
+    :param miniter: minimal learning steps (to avoid local minima)
     :param method: method to minimize
     :param diverge: for xitorch minimizer to check if the learning diverges
     :param maxdivattempts: attemps for divergens break up
@@ -113,7 +115,7 @@ def optimize_basis(basis: str,
         if type(f_rtol) is list and len(f_rtol) == 1:
             f_rtol = f_rtol[0]
     else:
-        f_rtol = 1e-8
+        f_rtol = 0.0
 
 
     if type(step) is list and type(f_rtol) is float:
@@ -157,6 +159,7 @@ def optimize_basis(basis: str,
                                                         step=step[i],
                                                         method=method,
                                                         maxiter=maxiter,
+                                                        miniter=miniter,
                                                         verbose=True,
                                                         writer=writer,
                                                         diverge = diverge,
@@ -201,6 +204,7 @@ def optimize_basis(basis: str,
                                                             step=step[s],
                                                             method=method,
                                                             maxiter=maxiter,
+                                                            miniter=miniter,
                                                             verbose=True,
                                                             writer=writer,
                                                             diverge=diverge,
@@ -246,6 +250,7 @@ def optimize_basis(basis: str,
                                                     step=step,
                                                     method=method,
                                                     maxiter=maxiter,
+                                                    miniter=miniter,
                                                     verbose=True,
                                                     writer=writer,
                                                     diverge = diverge,
@@ -290,6 +295,7 @@ def optimize_basis(basis: str,
                                                     step=step[i],
                                                     method=method,
                                                     maxiter=maxiter,
+                                                    miniter=miniter,
                                                     verbose=True,
                                                     writer=writer,
                                                     diverge=diverge,
@@ -333,6 +339,7 @@ def optimize_basis(basis: str,
                                                 step=step,
                                                 method=method,
                                                 maxiter=maxiter,
+                                                miniter=miniter,
                                                 verbose=True,
                                                 writer=writer,
                                                 diverge=diverge,
