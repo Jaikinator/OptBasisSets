@@ -11,4 +11,3 @@ from optb.data import *
 
 from optb.version import get_version as _get_version
 __version__ = _get_version()
-print('optb version:', __version__)
