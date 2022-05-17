@@ -74,9 +74,9 @@ def scf_dft_energy(basis :dict , atomstruc : list, atomstrucstr = None, outpath 
     mf = scf.RKS(mol)
     mf.xc = 'B3LYP'
     mf.kernel()
-    return mf.energy_tot(), os.path.basename(mol.output)
+    return mf.energy_tot()
 
-def optimize_basis(basis: str,
+def optimize_basis_old(basis: str,
                    basis_ref : str,
                    atomstruc : Union[str, list],
                    step: list[float],
@@ -143,7 +143,7 @@ def optimize_basis(basis: str,
 
                 bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc[i],**mol_kwargs)
 
-                writerpath, outpath = conf_output(basis, basis_ref, atomstruc[i], step[i], f_rtol,
+                writerpath, outpath = conf_output_old(basis, basis_ref, atomstruc[i], step[i], f_rtol,
                                                   outf= output_path, **out_kwargs)
                 writer = SummaryWriter(writerpath)
 
@@ -167,17 +167,16 @@ def optimize_basis(basis: str,
                                                         get_misc = get_misc,
                                                         f_rtol = f_rtol[i],
                                                         **minimize_kwargs)
-
+                print("line 170")
                 bsys1.get_SCF(atomstrucstr = atomstruc[i])
                 energy_small_basis = bsys1.SCF.get_tot_energy
                 energy_ref_basis = bsys2.SCF.get_tot_energy
 
                 optbasis = bconv(min_bparams, func_dict["bpacker"])
-                optbasis_energy, molout = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc[i], outpath)
+                optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc[i], outpath)
 
                 save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,optbasis_energy,
-                            atomstruc[i], step[i], maxiter, method,f_rtol,func_dict["bpacker"],
-                            molout, optkwargs=minimize_kwargs)
+                            atomstruc[i], step[i], maxiter, miniter , method,f_rtol,func_dict["bpacker"], optkwargs=minimize_kwargs)
             return optbasis
 
         else:
@@ -188,7 +187,7 @@ def optimize_basis(basis: str,
 
                     print(f"\n start optimization of {basis} Basis for the Molecule {atom} and learning-rate {step[s]}.")
 
-                    writerpath, outpath = conf_output(basis, basis_ref, atom, step[s], f_rtol,
+                    writerpath, outpath = conf_output_old(basis, basis_ref, atom, step[s], f_rtol,
                                                       outf=output_path, **out_kwargs)
                     writer = SummaryWriter(writerpath)
 
@@ -213,16 +212,16 @@ def optimize_basis(basis: str,
                                                             f_rtol = f_rtol[s],
                                                             **minimize_kwargs)
 
-
+                    print("line 215")
                     energy_small_basis = bsys1.SCF.get_tot_energy
                     energy_ref_basis = bsys2.SCF.get_tot_energy
 
                     optbasis = bconv(min_bparams, func_dict["bpacker"])
-                    optbasis_energy , molout = scf_dft_energy(optbasis, bsys1.atomstruc, atom, outpath)
+                    optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atom, outpath)
 
                     save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                                 optbasis_energy,
-                                atom, step[s], maxiter, method ,f_rtol[s],func_dict["bpacker"],molout
+                                atom, step[s], maxiter, miniter, method ,f_rtol[s],func_dict["bpacker"]
                                 ,misc = misc, optkwargs = minimize_kwargs)
 
             return optbasis
@@ -235,7 +234,7 @@ def optimize_basis(basis: str,
 
             bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc[i], **mol_kwargs)
 
-            writerpath, outpath = conf_output(basis, basis_ref, atomstruc[i], step, f_rtol,
+            writerpath, outpath = conf_output_old(basis, basis_ref, atomstruc[i], step, f_rtol,
                                               outf=output_path, **out_kwargs)
             writer = SummaryWriter(writerpath)
 
@@ -259,17 +258,17 @@ def optimize_basis(basis: str,
                                                     get_misc=get_misc,
                                                     f_rtol = f_rtol,
                                                     **minimize_kwargs)
-
+            print("line 261")
             bsys1.get_SCF(atomstrucstr= atomstruc[i])
             energy_small_basis = bsys1.SCF.get_tot_energy
             energy_ref_basis = bsys2.SCF.get_tot_energy
 
             optbasis = bconv(min_bparams, func_dict["bpacker"])
-            optbasis_energy, molout = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc[i], outpath)
+            optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc[i], outpath)
 
             save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                         optbasis_energy,
-                        atomstruc[i], step, maxiter, method, f_rtol,func_dict["bpacker"],molout,
+                        atomstruc[i], step, maxiter, miniter, method, f_rtol,func_dict["bpacker"],
                         misc = misc, optkwargs = minimize_kwargs)
         return optbasis
 
@@ -281,7 +280,7 @@ def optimize_basis(basis: str,
 
             bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc,**mol_kwargs)
 
-            writerpath, outpath = conf_output(basis, basis_ref, atomstruc, step[i], f_rtol,
+            writerpath, outpath = conf_output_old(basis, basis_ref, atomstruc, step[i], f_rtol,
                                               outf=output_path, **out_kwargs)
             writer = SummaryWriter(writerpath)
 
@@ -305,17 +304,17 @@ def optimize_basis(basis: str,
                                                     get_misc=get_misc,
                                                     f_rtol = f_rtol[i],
                                                     **minimize_kwargs)
-
+            print("line 307")
             bsys1.get_SCF(atomstrucstr=atomstruc)
             energy_small_basis = bsys1.SCF.get_tot_energy
             energy_ref_basis = bsys2.SCF.get_tot_energy
 
             optbasis = bconv(min_bparams, func_dict["bpacker"])
-            optbasis_energy , molout = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc, outpath)
+            optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc, outpath)
 
             save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis,
                         optbasis_energy,
-                        atomstruc, step[i], maxiter, method, f_rtol = f_rtol[i], packer=func_dict["bpacker"],molout=molout,
+                        atomstruc, step[i], maxiter, miniter, method, f_rtol = f_rtol[i], packer=func_dict["bpacker"],
                         misc = misc, optkwargs=minimize_kwargs)
         return optbasis
 
@@ -325,7 +324,7 @@ def optimize_basis(basis: str,
 
         bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc, **mol_kwargs)
 
-        writerpath, outpath = conf_output(basis, basis_ref, atomstruc, step, f_rtol,
+        writerpath, outpath = conf_output_old(basis, basis_ref, atomstruc, step, f_rtol,
                                                   outf= output_path, **out_kwargs)
         writer = SummaryWriter(writerpath)
 
@@ -349,16 +348,19 @@ def optimize_basis(basis: str,
                                                 get_misc=get_misc,
                                                 f_rtol= f_rtol,
                                                 **minimize_kwargs)
-
+        print("line 351")
+        print(min_bparams)
+        print(misc)
         bsys1.get_SCF(atomstrucstr=atomstruc)
         energy_small_basis = bsys1.SCF.get_tot_energy
         energy_ref_basis = bsys2.SCF.get_tot_energy
 
         optbasis = bconv(min_bparams, func_dict["bpacker"])
-        optbasis_energy, molout = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc, outpath)
-
+        optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc, outpath)
+        print(method)
         save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis, optbasis_energy,
-                    atomstruc, step, maxiter, method,f_rtol = f_rtol, packer=func_dict["bpacker"], molout = molout ,misc = misc, optkwargs=minimize_kwargs)
+                    atomstruc, step, maxiter,miniter =  miniter, method = method,
+                    f_rtol = f_rtol, packer=func_dict["bpacker"],misc = misc, optkwargs=minimize_kwargs)
 
         return optbasis
 
@@ -369,3 +371,153 @@ def optimize_basis(basis: str,
 
     else:
        raise "Something went wrong"
+
+def optimize_basis(basis: str,
+                   basis_ref : str,
+                   atomstruc : Union[str, list],
+                   step:  float,
+                   maxiter : int = 100000000,
+                   miniter : int = 1 ,
+                   method: str = "Adam",
+                   diverge = -1.0 ,
+                   maxdivattempts = 50,
+                   output_path = None,
+                   get_misc = True,
+                   mol_kwargs: dict = {},
+                   minimize_kwargs: dict = {},
+                   out_kwargs : dict = {}):
+    """
+    function to optimize basis functions.
+    :param basis: str basis which should be optimized
+    :param basis_ref: str reference basis
+    :param atomstruc: Molecule Structure
+    :param step: floats with the lr size for the optimization
+    :param maxiter: int maximum number of iterations
+    :param miniter: int minimum number of iterations
+    :param method: str method for optimization
+    :param diverge: float diverge value
+    :param maxdivattempts: int maximum number of divergence attempts
+    :param output_path: str path to output folder
+    :param get_misc: bool if True the misc dictionary is returned
+    :param mol_kwargs: dict kwargs for Molecule class
+    :param minimize_kwargs: dict kwargs for minimize function
+    :param out_kwargs: dict kwargs for save_output function
+    :return:
+    """
+
+    print(f"\n start optimization of {basis} Basis for the Molecule {atomstruc} and learning-rate {step}")
+
+    bsys1, bsys2, func_dict = Mole_minimizer(basis, basis_ref, atomstruc, **mol_kwargs)
+
+    writerpath, outpath = conf_output(basis, basis_ref, atomstruc,outf=output_path, **out_kwargs)
+
+    writer = SummaryWriter(writerpath)
+
+
+
+    if get_misc:
+        min_bparams, misc = xitorch.optimize.minimize(projection,
+                                                      func_dict["bparams"],
+                                                      (func_dict["bpacker"],
+                                                       func_dict["ref_basis"],
+                                                       func_dict["atomstruc_dqc"],
+                                                       func_dict["atomstruc"],
+                                                       func_dict["coeffM"],
+                                                       func_dict["occ_scf"],
+                                                       func_dict["num_gauss"],),
+                                                      step=step,
+                                                      method=method,
+                                                      maxiter=maxiter,
+                                                      miniter=miniter,
+                                                      verbose=True,
+                                                      writer=writer,
+                                                      diverge=diverge,
+                                                      maxdivattempts=maxdivattempts,
+                                                      get_misc=get_misc,
+                                                      **minimize_kwargs)
+    else:
+        min_bparams = xitorch.optimize.minimize(projection,
+                                                      func_dict["bparams"],
+                                                      (func_dict["bpacker"],
+                                                       func_dict["ref_basis"],
+                                                       func_dict["atomstruc_dqc"],
+                                                       func_dict["atomstruc"],
+                                                       func_dict["coeffM"],
+                                                       func_dict["occ_scf"],
+                                                       func_dict["num_gauss"],),
+                                                      step=step,
+                                                      method=method,
+                                                      maxiter=maxiter,
+                                                      miniter=miniter,
+                                                      verbose=True,
+                                                      writer=writer,
+                                                      diverge=diverge,
+                                                      maxdivattempts=maxdivattempts,
+                                                      get_misc=get_misc,
+                                                      **minimize_kwargs)
+        misc = {}
+
+    bsys1.get_SCF(atomstrucstr=atomstruc)
+    energy_small_basis = bsys1.SCF.get_tot_energy
+    energy_ref_basis = bsys2.SCF.get_tot_energy
+
+    optbasis = bconv(min_bparams, func_dict["bpacker"])
+    optbasis_energy = scf_dft_energy(optbasis, bsys1.atomstruc, atomstruc, outpath)
+
+    save_output(outpath, basis, energy_small_basis, basis_ref, energy_ref_basis, optbasis, optbasis_energy,
+                atomstruc, step, maxiter, miniter=miniter, method=method,
+                packer=func_dict["bpacker"], misc=misc, optkwargs=minimize_kwargs)
+
+
+def opt_basis_mult_steps(basis: str,
+                   basis_ref : str,
+                   atomstruc : Union[str, list],
+                   step:  float,
+                   maxiter : int = 100000000,
+                   miniter : int = 1 ,
+                   method: str = "Adam",
+                   diverge = -1.0 ,
+                   maxdivattempts = 50,
+                   output_path = None,
+                   get_misc = True,
+                   mol_kwargs: dict = {},
+                   minimize_kwargs: dict = {},
+                   out_kwargs : dict = {}):
+    """
+    Optimize basis for multiple learning rates.
+    """
+    for i in step:
+        optimize_basis(basis, basis_ref, atomstruc, i, maxiter, miniter, method,
+                       diverge, maxdivattempts, output_path, get_misc, mol_kwargs, minimize_kwargs, out_kwargs)
+
+
+def mult_atomstruc(basis: str,
+                   basis_ref : str,
+                   atomstruc : Union[str, list],
+                   step:  float,
+                   maxiter : int = 100000000,
+                   miniter : int = 1 ,
+                   method: str = "Adam",
+                   diverge = -1.0 ,
+                   maxdivattempts = 50,
+                   output_path = None,
+                   get_misc = True,
+                   mol_kwargs: dict = {},
+                   minimize_kwargs: dict = {},
+                   out_kwargs : dict = {}):
+    """
+    Optimize basis for multiple atom structures
+    """
+    for i in atomstruc:
+        optimize_basis(basis, basis_ref, i, step, maxiter, miniter, method,
+                       diverge, maxdivattempts, output_path, get_misc, mol_kwargs, minimize_kwargs, out_kwargs)
+
+
+
+
+
+
+
+
+
+
