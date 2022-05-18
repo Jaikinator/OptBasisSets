@@ -428,6 +428,17 @@ class OPTBASIS:
         self.opt_bparams = torch.Tensor
         self.misc_params = dict
 
+        if not output_path == None:
+            writerp, self.outpath = self._setup_output_path()
+            self.writer = SummaryWriter(writerp)
+        else:
+            self.writer = None
+            self.outpath = None
+
+        if isinstance(self.step, list):
+            warnings.warn('Attention your input takes multiple learning rates opt_bparams as well as misc_params will be '
+                          'overwritten')
+
 
     def select_optimal_optimizer(self):
         print("selecting optimal optimizer")
@@ -463,7 +474,7 @@ class OPTBASIS:
         opt_basis = bconv(opt_bparams, bpacker)
         return opt_basis
 
-    def calc_optbasis_energy(self, basis,atomstruc, outpath: str = "./"):
+    def calc_optbasis_energy(self, basis, outpath: str = "./"):
         """
         runs a dft calculation using pyscf.
         :return: total energy of the system.
@@ -546,21 +557,57 @@ class OPTBASIS:
 
         return energy_small_basis, energy_ref_basis, func_dict
 
-    def _save_out(self, energy_small_basis, energy_ref_basis, func_dict, outpath):
+    def _save_out(self, energy_small_basis, energy_ref_basis, func_dict, *args,**kwargs):
         optbasis = bconv(self.opt_bparams, func_dict["bpacker"])
-        optbasis_energy = self.calc_optbasis_energy(optbasis, self.molecule, outpath)
+        optbasis_energy = self.calc_optbasis_energy(optbasis, self.molecule, self.outpath)
 
-        save_output(outpath, self.basis, energy_small_basis, self.basis_ref, energy_ref_basis, optbasis,
-                    optbasis_energy,
-                    self.molecule, self.step, self.maxiter, miniter=self.miniter, method=self.method,
-                    packer=func_dict["bpacker"], misc=self.misc, optkwargs=self.minimize_kwargs)
+        _dict = {"outdir" : self.outpath,
+                    "b1": self.basis,
+                   "b1_energy" : energy_small_basis,
+                   "b2": self.basis_ref,
+                   "b2_energy" : energy_ref_basis,
+                   "optbasis" : optbasis,
+                   "optbasis_energy" : optbasis_energy,
+                   "atomstruc" :self.molecule,
+                   "lr" : self.step,
+                   "maxiter" : self.maxiter,
+                   "miniter" : self.miniter,
+                   "method" : self.method,
+                   "packer" : func_dict["bpacker"],
+                   "misc" : self.misc,
+                   "optkwargs": self.minimize_kwargs}
+
+        for val in kwargs.keys():
+            if val in _dict.keys():
+                _dict[val] = kwargs[val]
+
+        save_output(**_dict)
         return self
 
-    def run(self, func_dict, writer = None):
+
+    def run(self, func_dict, *args,**kwargs):
         """
         run the optimization
         :return: torch.Tensor of optimized basis and dict of misc values
         """
+
+        min_dict = {"step" : self.step,
+                    "method" : self.method,
+                    "maxiter" : self.maxiter,
+                    "miniter" :self.miniter,
+                    "verbose" : True,
+                    "writer" : self.writer,
+                    "diverge" : self.diverge,
+                    "maxdivattempts" : self.maxdivattempts,
+                    "get_misc":self.get_misc,
+                    **self.minimize_kwargs}
+
+        for val in kwargs.keys():
+            if val in min_dict.keys():
+                min_dict[val] = kwargs[val]
+            # realy simple but it just works u know? ;)
+            # btw hab die Patente A, B, C und die 6 ich fahr die großen Pödde.
+
         min_bparams =  xitorch.optimize.minimize(projection,
                                         func_dict["bparams"],
                                         (func_dict["bpacker"],
@@ -570,16 +617,7 @@ class OPTBASIS:
                                          func_dict["coeffM"],
                                          func_dict["occ_scf"],
                                          func_dict["num_gauss"],),
-                                        step=self.step,
-                                        method=self.method,
-                                        maxiter=self.maxiter,
-                                        miniter=self.miniter,
-                                        verbose=True,
-                                        writer=writer,
-                                        diverge=self.diverge,
-                                        maxdivattempts=self.maxdivattempts,
-                                        get_misc=self.get_misc,
-                                        **self.minimize_kwargs)
+                                        )
         if self.get_misc:
             self.opt_bparams = min_bparams[0]
             self.misc = min_bparams[1]
@@ -589,24 +627,23 @@ class OPTBASIS:
             return min_bparams
 
 
-    def optimize_basis_single_molecule(self, save_out=True):
+    def optimize_basis(self, save_out=True):
+
         energy_small_basis, energy_ref_basis, func_dict = self._get_mol_setup()
 
-        if save_out:
-            writerpath, outpath = self._setup_output_path()
 
-            writer = SummaryWriter(writerpath)
+        if isinstance(self.step, list):
+            for i in self.step:
+                self.run(func_dict, step = i)
+                if save_out:
+                    self._save_out(energy_small_basis, energy_ref_basis, func_dict, step = i)
+
         else:
-            writer = None
-            outpath = None
+            self.run(func_dict, step = self.step)
+            if save_out:
+                self._save_out(energy_small_basis, energy_ref_basis, func_dict, step = self.step)
 
-        self.run(func_dict, writer=writer)
-
-        self._save_out(energy_small_basis, energy_ref_basis, func_dict, outpath)
         return self
-
-
-
 
 
 
@@ -615,19 +652,6 @@ class OPTBASIS:
                f" maxiter={self.maxiter}, miniter={self.miniter}, method={self.method}, diverge={self.diverge}," \
                f" maxdivattempts={self.maxdivattempts}, output_path={self.output_path}, get_misc={self.get_misc}," \
                f" mol_kwargs={self.mol_kwargs}, minimize_kwargs={self.minimize_kwargs}, out_kwargs={self.out_kwargs})"
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def optimize_basis(basis: str,
