@@ -37,7 +37,6 @@ torch.set_printoptions(linewidth=200)
 
 if __name__ == "__main__":
 
-
     ####################################################################################################################
     # setup arg parser throw terminal inputs
     ####################################################################################################################
@@ -143,11 +142,12 @@ if __name__ == "__main__":
             print(f"{len(elg2)} molecules will be optimized")
         else:
             #if you dont want to run the code over terminal change this one
-            atomstruc = "co"
-            step = 2e-8
-            f_rtol = 1
-
-
+            basis = "STO-3G"
+            basis_ref = "cc-pvtz"
+            atomstruc = "h2s"
+            maxiter = 100
+            step = 0.0002
+            f_rtol = 0
     ####################################################################################################################
     # create output folder to current path
     ####################################################################################################################
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     ####################################################################################################################
     inputdict = {"basis" : basis,
                  "basis_ref": basis_ref,
-                 "atomstruc": atomstruc,
+                 "molecule": atomstruc,
                  "step": step,
                  "maxiter": maxiter,
                  "miniter": miniter,
@@ -174,11 +174,12 @@ if __name__ == "__main__":
                  "minimize_kwargs" : {"f_rtol": f_rtol}
                  }
 
-
-    if tel:
-        tel_optimize_basis(inputdict)
-    else:
-        optimize_basis(**inputdict)
-
-    if args.cres:
-        merge_data()
+    OPTBASIS(**inputdict).optimize_basis_single_molecule()
+    #
+    # if tel:
+    #     tel_optimize_basis(inputdict)
+    # else:
+    #     optimize_basis(**inputdict)
+    #
+    # if args.cres:
+    #     merge_data()
