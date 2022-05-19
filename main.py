@@ -32,7 +32,7 @@ def cuda_device_checker(memory=False):
 # configure torch tensor
 ########################################################################################################################
 
-torch.set_printoptions(linewidth=200)
+torch.set_printoptions(linewidth=200, precision=5)
 
 
 if __name__ == "__main__":
@@ -144,9 +144,9 @@ if __name__ == "__main__":
             #if you dont want to run the code over terminal change this one
             basis = "STO-3G"
             basis_ref = "cc-pvtz"
-            atomstruc = "h2s"
-            maxiter = 100
-            step = 0.0002
+            atomstruc = "h2"
+            maxiter = 10000
+            step = 0.0000002
             f_rtol = 0
     ####################################################################################################################
     # create output folder to current path
@@ -174,7 +174,7 @@ if __name__ == "__main__":
                  "minimize_kwargs" : {"f_rtol": f_rtol}
                  }
 
-    OPTBASIS(**inputdict).optimize_basis_single_molecule()
+    OPTBASIS(**inputdict).optimize_basis()
     #
     # if tel:
     #     tel_optimize_basis(inputdict)
