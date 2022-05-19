@@ -1,5 +1,6 @@
 import torch
-from  pyscf import gto, scf
+
+from pyscf import gto, scf
 import xitorch.optimize
 from typing import Union
 from torch.utils.tensorboard import SummaryWriter
@@ -9,6 +10,7 @@ from optb.projection import projection
 from optb.Mole import Mole_minimizer
 from optb.basis_converter import bconv
 from optb.AtomsDB import loadatomstruc
+
 
 class OPTBASIS:
 
@@ -181,7 +183,7 @@ class OPTBASIS:
         optbasis_energy = self.calc_optbasis_energy(optbasis, self.outpath)
 
         _dict = {"outdir" : self.outpath,
-                    "b1": self.basis,
+                   "b1": self.basis,
                    "b1_energy" : energy_small_basis,
                    "b2": self.basis_ref,
                    "b2_energy" : energy_ref_basis,
@@ -259,16 +261,22 @@ class OPTBASIS:
             return min_bparams
 
 
-    def optimize_basis(self, save_out=True):
+    def optimize_basis(self, save_out=True, **kwargs):
+        """
+        optimize basis for molecule
+        :param save_out: bool save output to file
+        :param in_parallel: bool run in parallel if multiprocessing is available (if steps is a list)
+        :param kwargs: dict of kwargs for function that gets minimized
+        :return: torch.Tensor of optimized basis and dict of misc values
+        """
 
         energy_small_basis, energy_ref_basis, func_dict = self._get_mol_setup()
 
-
         if isinstance(self.step, list):
-            for i in self.step:
-                self.run(func_dict, step = i)
-                if save_out:
-                    self._save_out(energy_small_basis, energy_ref_basis, func_dict, step = i)
+                for i in self.step:
+                    self.run(func_dict, step = i)
+                    if save_out:
+                        self._save_out(energy_small_basis, energy_ref_basis, func_dict, step = i)
 
         else:
             self.run(func_dict, step = self.step)
