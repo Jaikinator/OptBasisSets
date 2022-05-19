@@ -2,8 +2,8 @@ import os
 import subprocess as sp
 
 MAJOR = 0
-MINOR = 1
-MICRO = 4
+MINOR = 2
+MICRO = 0
 MICRO_POST = 0
 ISRELEASED = False
 VERSION = '%d.%d.%d.%d' % (MAJOR, MINOR, MICRO, MICRO_POST)
