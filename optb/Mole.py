@@ -142,6 +142,7 @@ def Mole_minimizer(basis, ref_basis, atomstruc, **kwargs):
                 "atomstruc_dqc": system.DQC.atomstruc_dqc,
                 "atomstruc": system.DQC.atomstruc,
                 "coeffM": ref_system.SCF.get_coeff,
+                "mo_energy": ref_system.SCF.get_mo_energy,
                 "occ_scf": ref_system.SCF.get_occ,
                 "num_gauss": _num_gauss(system, ref_system)}
 

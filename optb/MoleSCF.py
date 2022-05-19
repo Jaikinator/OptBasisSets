@@ -183,6 +183,12 @@ class MoleSCF:
         return torch.tensor(self.dft.mo_coeff)
 
     @property
+    def get_mo_energy(self):
+        """
+        :return: torch.Tensor, molecular orbital energies
+        """
+        return torch.tensor(self.dft.mo_energy)
+    @property
     def get_occ_coeff(self):
         """
          coefficient- matrix of just the occupied orbitals
