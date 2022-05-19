@@ -248,6 +248,7 @@ class OPTBASIS:
                                          func_dict["atomstruc_dqc"],
                                          func_dict["atomstruc"],
                                          func_dict["coeffM"],
+                                         func_dict["mo_energy"],
                                          func_dict["occ_scf"],
                                          func_dict["num_gauss"],),
                                         **min_dict)
@@ -279,7 +280,7 @@ class OPTBASIS:
                         self._save_out(energy_small_basis, energy_ref_basis, func_dict, step = i)
 
         else:
-            self.run(func_dict, step = self.step)
+            self.run(func_dict)
             if save_out:
                 self._save_out(energy_small_basis, energy_ref_basis, func_dict, step = self.step)
 
