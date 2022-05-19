@@ -558,8 +558,9 @@ class OPTBASIS:
         return energy_small_basis, energy_ref_basis, func_dict
 
     def _save_out(self, energy_small_basis, energy_ref_basis, func_dict, *args,**kwargs):
+
         optbasis = bconv(self.opt_bparams, func_dict["bpacker"])
-        optbasis_energy = self.calc_optbasis_energy(optbasis, self.molecule, self.outpath)
+        optbasis_energy = self.calc_optbasis_energy(optbasis, self.outpath)
 
         _dict = {"outdir" : self.outpath,
                     "b1": self.basis,
@@ -581,6 +582,10 @@ class OPTBASIS:
             if val in _dict.keys():
                 _dict[val] = kwargs[val]
 
+        if kwargs["step"]:
+            _dict["lr"] = kwargs["step"]
+
+
         save_output(**_dict)
         return self
 
@@ -590,7 +595,7 @@ class OPTBASIS:
         run the optimization
         :return: torch.Tensor of optimized basis and dict of misc values
         """
-
+        print("running optimization")
         min_dict = {"step" : self.step,
                     "method" : self.method,
                     "maxiter" : self.maxiter,
@@ -617,7 +622,8 @@ class OPTBASIS:
                                          func_dict["coeffM"],
                                          func_dict["occ_scf"],
                                          func_dict["num_gauss"],),
-                                        )
+                                        **min_dict)
+
         if self.get_misc:
             self.opt_bparams = min_bparams[0]
             self.misc = min_bparams[1]
