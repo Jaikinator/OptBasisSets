@@ -97,7 +97,7 @@ Function for the Projection between two basis function.
 This function will be optimized by the xitorch minimizer.
 """
 
-def projection(bparams: torch.Tensor, bpacker: Packer, ref_basis
+def projection_(bparams: torch.Tensor, bpacker: Packer, ref_basis
         , atomstruc_dqc: str, atomstruc: list, coeffM: torch.Tensor, occ_scf: torch.Tensor, num_gauss: torch.Tensor):
     """
     Function to optimize
@@ -128,4 +128,35 @@ def projection(bparams: torch.Tensor, bpacker: Packer, ref_basis
         _projection[:, i] = torch.mul(_projt[:, i], occ_scf[i])
 
     return -torch.trace(_projection) / torch.sum(occ_scf)
+
+def projection(bparams: torch.Tensor, bpacker: Packer, ref_basis
+        , atomstruc_dqc: str, atomstruc: list, coeffM: torch.Tensor,mo_energy : torch.Tensor ,occ_scf: torch.Tensor, num_gauss: torch.Tensor):
+    """
+    Function to optimize
+    :param bparams: torch.tensor with coeff of basis set for the basis that has to been optimized
+    :param bpacker: xitorch._core.packer.Packer object to create the CGTOBasis out of the bparams
+    :param bparams_ref: torch.tensor like bparams but now for the refenrenence basis on which to optimize.
+    :param bpacker_ref: xitorch._core.packer.Packer like Packer but now for the refenrenence basis on which to optimize.
+    :param atomstruc_dqc: string of atom structure
+    :return:
+    """
+
+    basis = bpacker.construct_from_tensor(
+        bparams)  # create a CGTOBasis Object (set informations about gradient, normalization etc)
+
+    basis_cross = blister(atomstruc, basis, ref_basis)
+
+    colap = crossoverlap(atomstruc_dqc, basis_cross)
+
+    # maximize overlap
+
+    _projt = projection_mat(coeffM, colap, num_gauss)
+
+    occ_scf = occ_scf[occ_scf > 0]
+    len_occ = len(occ_scf)
+
+    _projection = torch.mul(_projt[:, : len_occ], torch.mul(occ_scf, mo_energy[:len_occ].detach()))
+
+    return torch.trace(_projection) / torch.sum(occ_scf)
+
 
