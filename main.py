@@ -78,7 +78,7 @@ if __name__ == "__main__":
                              " If len of atomstuc is the same as the len of -lr than each atomstruc get specific lr, "
                              "otherwise the each atomstruc will be trained with every lr)")
 
-    parser.add_argument("--frtol", type= float, nargs='+', metavar="", default = 1e-8,
+    parser.add_argument("--frtol", type= float, nargs='+', metavar="", default = 0.0,
                         help="The relative tolerance of the norm of the input (if set you opt. " \
                              "the same atomic structures for multiple frtol." \
                              " If lr and frtol are sets than you opt the they pair together")
@@ -126,7 +126,7 @@ if __name__ == "__main__":
 
         @telegram_sender(token=token, chat_id=CHAT_ID)
         def tel_optimize_basis(inputdict: dict):
-            optimize_basis(**inputdict)
+            OPTBASIS(**inputdict).optimize_basis()
             mol = inputdict["atomstruc"]
             return f"Learning done for {mol}"
 
