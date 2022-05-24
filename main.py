@@ -47,7 +47,7 @@ if __name__ == "__main__":
     # configure atomic optb:
     ####################################################################################################################
 
-    parser.add_argument("--mol",dest="atomstruc", type = str, nargs="+", metavar="",
+    parser.add_argument("--mol",dest="atomstruc", type = str, metavar="",
                         help='Name or set of names to define the atomic structure that you want to optimize.')
 
     group = parser.add_mutually_exclusive_group()
