@@ -2,12 +2,10 @@
 creats a json file where each key can be accessed by the index of a slurm array job.
 by accessing the key, the json file can be used to create the input dict for an executable program.
 """
-import os
+
 from argparse import ArgumentParser
-import sys
 from itertools import product
 import json
-
 
 def create_dict(*args, **kwargs):
     """
