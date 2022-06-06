@@ -61,7 +61,7 @@ def create_dict(*args, **kwargs):
         raise ValueError("No arguments given")
 
 
-def save_dict(output_path, dict):
+def save_to_file(output_path, dict):
     """
     saves the dict to a json file.
     :param output_path: path to the output file
@@ -73,7 +73,7 @@ def save_dict(output_path, dict):
     print(f"saved to {output_path}")
 
 
-def load_dict(input_path):
+def load_from_file(input_path):
     """
     loads the dict from a json file.
     """
