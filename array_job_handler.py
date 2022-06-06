@@ -7,17 +7,20 @@ from argparse import ArgumentParser
 from itertools import product
 import json
 
+
 def create_dict(*args, **kwargs):
     """
     creates a dict with the product of the args e.g. kwargs.
     use args or kwargs but not both.
     if args is used, args[0] is the key and args[1:] are the values.
     args[1:] should match the key in there order.
+    If one input is list(list()) the first dimension will be used for the product.
 
     if kwargs is used, the key is the key and the value are the values.
     """
 
     def _create_iterable(arg):
+
         if isinstance(arg, tuple):
             arg = list(arg)
 
@@ -25,34 +28,40 @@ def create_dict(*args, **kwargs):
             if i == 0:
                 continue
             else:
-                if isinstance(arg[i], int) or isinstance(arg[i], float) or isinstance(arg[i], str):
+                if isinstance(arg[i], int) or isinstance(arg[i], float) or isinstance(arg[i], str)\
+                        or isinstance(arg[i], dict) or isinstance(arg[i], bool):
+
                     arg[i] = [arg[i]]
+                elif isinstance(arg[i], list):
+                    pass
+                else:
+                    raise TypeError(f"{arg[i]} is not a valid type")
         return arg
 
     def _create_dict(key, arg):
         id_dict = {}
-        indict = {}
 
         prod = list(product(*arg))
 
         i = 0
+
         while i < len(prod):
+            indict = {}
             for k, v in zip(key, prod[i]):
                 indict[k] = v
+
             id_dict[i] = indict
             i += 1
+
         return id_dict
 
     if len(args) > 0:
-        print("args are used")
 
         args = _create_iterable(args)
 
         return _create_dict(args[0], args[1:])
 
     elif len(kwargs) > 0:
-        print("kwargs are used")
-
         arg = _create_iterable(list(kwargs.values()))
 
         return _create_dict(kwargs.keys(), arg)
@@ -144,4 +153,4 @@ if __name__ == "__main__":
     out_dict = create_dict(**args_dict)
 
     # save the dict
-    save_dict(args.output, out_dict)
+    save_to_file(args.output, out_dict)
