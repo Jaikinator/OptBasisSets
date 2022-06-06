@@ -7,17 +7,15 @@ https://github.com/xitorch/xitorch.git
 """
 
 from optb.optimize_basis import *
-from json import load
-import os
-import sys
+from slurm_stuff.array_job_handler import load_from_file as load
 import argparse
-
 
 ########################################################################################################################
 # configure torch tensor
 ########################################################################################################################
 
 torch.set_printoptions(linewidth=200, precision=5)
+
 
 if __name__ == "__main__":
 
@@ -27,28 +25,40 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Optimize Basis')
 
-    ####################################################################################################################
-    # configure atomic optb:
-    ####################################################################################################################
+    parser.add_argument("-f",dest="file", type = str, metavar="",
+                        help='Name of the training input file')
 
-    parser.add_argument("-f" ,"--file",dest="infile", type = str, metavar="",default = "training_input.json",
-                        help='name of the input file.')
-
-    parser.add_argument("-i" ,"--inputID",dest="id", type = str, metavar="",default= "0",
-                        help='slurm ID to select index of the input file.')
+    parser.add_argument("-i", "--id", dest="id", type= str, metavar="",
+                        help='slurm ID of the job')
 
     ####################################################################################################################
     # parse arguments
     ####################################################################################################################
 
     args = parser.parse_args()
-
-    ####################################################################################################################
+    ###################################################################################################################
     # load input file
-    ####################################################################################################################
+    ###################################################################################################################
 
-    trainingset = load(open(args.infile))
-    inputdict = trainingset[args.id]
-    Opt = OPTBASIS(**inputdict)
-    print(Opt)
-    Opt.optimize_basis()
+    input_file = load(args.file)[args.id]
+
+    # split up basis
+    input_file["basis"] , input_file["basis_ref"] = input_file["basis"].split(",")
+
+
+
+    ####################################################################################################################
+    # create output folder to current path
+    ####################################################################################################################
+    savepath = input_file["output_path"]
+    _outf = os.path.join(savepath, "../output")
+    if not os.path.exists(_outf):
+        os.mkdir(_outf)
+    savepath = _outf
+
+    ####################################################################################################################
+    # run actual optimization
+    ####################################################################################################################
+    OPTB = OPTBASIS(**input_file)
+    OPTB.optimize_basis()
+
