@@ -2,8 +2,7 @@
 create a executable file for the slurm array job.
 """
 
-from slurm_stuff.array_job_handler import create_dict,  save_to_file
-from optb.data.avdata import elw417 as w417
+from array_job_handler import create_dict,  save_to_file
 import os
 import sys
 from time import localtime
@@ -12,7 +11,7 @@ from time import localtime
 # setup executables
 ########################################################################################################################
 startdate = localtime()
-executable = sys.executable
+executable = sys.executable # python3
 shrunf = "run_slurm_OPTB.sh"
 slurm_outfolder = f"slurm_out/{startdate.tm_year}_{startdate.tm_mon}_{startdate.tm_mday}"
 job_name = "OPTB"
@@ -24,6 +23,8 @@ gcc_version = "gcc/7.3.0"
 
 input_file_name = "training_input.json"
 execute_file_name = "test_run.py"
+
+
 ########################################################################################################################
 # setup resources
 ########################################################################################################################
@@ -35,8 +36,15 @@ queue = "standard" # queue name
 ########################################################################################################################
 # execute through this script
 ########################################################################################################################
+
 execute_file = True
 
+if conda_env in executable: # get sure that the right conda env is used!
+    print("conda env is already activated")
+else:
+    raise ValueError(f"conda env missmatch.\n"
+                     f" {conda_env} is not activated.\n"
+                  f"activate it with: conda activate {conda_env}")
 
 ########################################################################################################################
 # create output folder structure if not exist
@@ -50,7 +58,8 @@ print(f"folder created {slurm_outfolder}")
 ########################################################################################################################
 # create input file
 ########################################################################################################################
-mol = w417[1]
+from optb.data.avdata import elw417 as w417 # import the data
+mol = w417
 learning_rate = [2e-2, 2e-3, 2e-4, 2e-5, 2e-6, 2e-7, 2e-8, 2e-9, 2e-10]
 basis = ["STO-3G,3-21G", "3-21G,cc-pvtz", "cc-pvdz,cc-pvtz", "aug-cc-pVDZ,aug-pc-2"]
 method = ["gd", "adam"]
