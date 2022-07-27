@@ -6,6 +6,7 @@ import os
 import time
 
 import pandas as pd
+from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import plotly.express as px
 import matplotlib.pyplot as plt
@@ -40,13 +41,13 @@ def calculate_impact(df):
     df["database"] = name_db
 
     # create energy per atom column
-    df["optb_energy [hartree /atom]"] = df["opt_energy"] / df["number_of_atoms"]
-    df['initial_energy [hartree/atom]'] = df["initial_energy"] / df["number_of_atoms"]
-    df["ref_energy [hartree/atom]"] = df["ref_energy"] / df["number_of_atoms"]
+    df["optb_energy [hartree/atom]"] = df["opt_energy"]/ df["number_of_atoms"]
+    df['initial_energy [hartree/atom]'] = df["initial_energy"]/ df["number_of_atoms"]
+    df["ref_energy [hartree/atom]"] = df["ref_energy"]/ df["number_of_atoms"]
 
     # create impact column
-    df["ref-opb [hartree /atom]"] = df["ref_energy [hartree/atom]"] - df["optb_energy [hartree /atom]"]
-    df["ref-init [hartree /atom]"] = df["ref_energy [hartree/atom]"] - df["initial_energy [hartree/atom]"]
+    df["ref-opb [hartree/atom]"] = df["ref_energy [hartree/atom]"] - df["optb_energy [hartree/atom]"]
+    df["ref-init [hartree/atom]"] = df["ref_energy [hartree/atom]"] - df["initial_energy [hartree/atom]"]
     df.reset_index(drop=True, inplace=True)
 
     return df
@@ -62,7 +63,7 @@ def drop_small_best_i(df, threshold = 10):
     print(f"\n\tDropped {df_len - len(df)} results.\n")
     return df
 
-def remove_SCF_not_converged(df, threshold = 100, folder = 'data', comment_scfnotconverged:str = ""):
+def remove_SCF_not_converged(df, threshold = 100, folder = 'data', comment_scfnotconverged:str = "", save = True):
     """
     Remove the SCF not converged results.
     """
@@ -80,7 +81,7 @@ def remove_SCF_not_converged(df, threshold = 100, folder = 'data', comment_scfno
 
         molec_old = set(_df_mol["molecule"])
         # drop result where the reference scf calculation is not converged
-        ind_not_converged = _df_mol[abs(_df_mol["ref_energy"] / _df_mol["initial_energy"]) > threshold].index
+        ind_not_converged = _df_mol[abs(_df_mol["ref_energy"]/ _df_mol["initial_energy"]) > threshold].index
 
         _df_mol.drop(ind_not_converged, inplace=True) # just to check which molecules are dropped
         _df_mol.reset_index(drop=True, inplace=True)
@@ -95,7 +96,7 @@ def remove_SCF_not_converged(df, threshold = 100, folder = 'data', comment_scfno
         ind = _df[_df["basis_variation"] == basisv].index
         _df_mol_2 = _df.copy().iloc[ind]
 
-        ind_not_converged_optb = _df_mol_2[abs(_df_mol_2["opt_energy"] / _df_mol_2["ref_energy"]) > threshold].index
+        ind_not_converged_optb = _df_mol_2[abs(_df_mol_2["opt_energy"]/ _df_mol_2["ref_energy"]) > threshold].index
 
         _df_mol_2.drop(ind_not_converged_optb, inplace=True) # just to check which molecules are dropped because of optb energy too high
         _df_mol_2.reset_index(drop=True, inplace=True)
@@ -111,7 +112,7 @@ def remove_SCF_not_converged(df, threshold = 100, folder = 'data', comment_scfno
         print(f"\t removed because the scf of a optimised basis wasn't converged "
               f"{len(molec_drop_scf_not_conv - molec_drop_scf_optb_not_conv)} molecules.")
 
-        if len(molec_old - molec_drop_scf_optb_not_conv) > 0:
+        if len(molec_old - molec_drop_scf_optb_not_conv) >  0 and save:
             basisvstr = str(basisv).replace("(", "").replace(")", "").replace(" ", "").replace("'", "")
             print(f"\n\tThe molecules that are not converged for {basisvstr} are "
                   f"written in {folder}/molecules_dropped_{basisvstr}_{comment_scfnotconverged}.txt\n")
@@ -156,7 +157,11 @@ def select_db(df,db):
         raise ValueError("The database must be local or remote")
 
 def drop_wrong_learning(df):
-    drop_to_big = df[df["ref-opb [hartree /atom]"] < df["ref-init [hartree /atom]"]].index
+    """
+    Drop the results where the learning is not correct and the result where diverged.
+    """
+
+    drop_to_big = df[df["ref-opb [hartree/atom]"] < df["ref-init [hartree/atom]"]].index
     print("len df old", len(df))
 
     df = df.drop(drop_to_big)
@@ -186,21 +191,21 @@ def get_best_res_mol(df, db ="w417", folder = "data", comment_scfnotconverged:st
 
             index_mol_per_basis_mutation = df_mol[df_mol == mol].index
 
-            imp = _df["ref-opb [hartree /atom]"][index_mol_per_basis_mutation].idxmin()
+            imp = _df["ref-opb [hartree/atom]"][index_mol_per_basis_mutation].idxmin()
 
             out_df.loc[len(out_df)] = _df.iloc[imp]
 
     return out_df
 
-def get_average_impact_bv(df):
+def get_average_impact_bv(df ,abs = True):
     mean_imp_arr = []
     mean_total_arr = []
     basis_var_arr = []
 
     for var in set(df["basis_variation"]):
         ind_val = df[df["basis_variation"] == var].index
-        mean_val = df["ref-opb [hartree /atom]"][ind_val].mean()
-        mean_total_avg = df["ref-init [hartree /atom]"][ind_val].mean()
+        mean_val = df["ref-opb [hartree/atom]"][ind_val].mean()
+        mean_total_avg = df["ref-init [hartree/atom]"][ind_val].mean()
         mean_imp_arr.append(mean_val)
         mean_total_arr.append(mean_total_avg)
         basis_var_arr.append(var)
@@ -209,6 +214,22 @@ def get_average_impact_bv(df):
                                       "mean energy difference [hartree/atom]": mean_imp_arr ,
                                       "ref - init energy difference [hartree/atom]":mean_total_arr})
     df_mean_basis_var["basis_variation"] = df_mean_basis_var["basis_variation"].astype(str)
+
+    # calculate the absolute difference for each basis variation
+
+    df_mean_basis_var["absolute difference [hartree/atom]"] = \
+        df_mean_basis_var["ref - init energy difference [hartree/atom]"] - df_mean_basis_var["mean energy difference [hartree/atom]"]
+
+    if abs:
+
+        df_mean_basis_var["mean energy difference [hartree/atom]"] =  \
+            df_mean_basis_var["mean energy difference [hartree/atom]"].abs()
+
+        df_mean_basis_var["ref - init energy difference [hartree/atom]"] =  \
+            df_mean_basis_var["ref - init energy difference [hartree/atom]"].abs()
+
+        df_mean_basis_var["absolute difference [hartree/atom]"] =  \
+            df_mean_basis_var["absolute difference [hartree/atom]"].abs()
 
     return df_mean_basis_var
 
@@ -231,8 +252,8 @@ def reorder_df(df1, df2):
     df1 = df1[df2.columns.values]
     std_headers = ['molecule', 'file number', 'initial_energy', 'ref_energy', 'opt_energy', 'learning rate', 'maxiter',
                    'miniter', 'method', 'best_f', 'best_df', 'best_dcnorm', 'best_i', 'max_i', 'f_rtol', 'basis',
-                   'ref. basis', 'basis_variation', 'number_of_atoms', 'database', 'optb_energy [hartree /atom]',
-                   'initial_energy [hartree/atom]', 'ref_energy [hartree/atom]', 'ref-opb [hartree /atom]', 'ref-init [hartree /atom]']
+                   'ref. basis', 'basis_variation', 'number_of_atoms', 'database', 'optb_energy [hartree/atom]',
+                   'initial_energy [hartree/atom]', 'ref_energy [hartree/atom]', 'ref-opb [hartree/atom]', 'ref-init [hartree/atom]']
 
     if len(df1.columns.values) == len(df2.columns.values)\
         and len(df1.columns.values) == len(std_headers)\
@@ -245,8 +266,8 @@ def reorder_df(df1, df2):
                          'best_i', 'max_i', 'f_rtol',
 
                          'initial_energy', 'ref_energy', 'opt_energy',
-                         'initial_energy [hartree/atom]', 'ref_energy [hartree/atom]','optb_energy [hartree /atom]',
-                         'ref-opb [hartree /atom]', 'ref-init [hartree /atom]']
+                         'initial_energy [hartree/atom]', 'ref_energy [hartree/atom]','optb_energy [hartree/atom]',
+                         'ref-opb [hartree/atom]', 'ref-init [hartree/atom]']
             df1 = df1[new_order]
             df2 = df2[new_order]
 
@@ -256,6 +277,19 @@ def reorder_df(df1, df2):
         warnings.warn("The dataframe headers are not the standard ones. Only df1 will be changed.")
         return df1
 
+def normalize_basis_variation(df):
+    """
+    Normalize the basis variation str.
+    :param df: dataframe with the results
+    :return: pd.DataFrame.
+    """
+    df = df.copy()
+
+    for i in range(len(df)):
+       df.loc[i,"basis_variation"] = str(df.loc[i,"basis_variation"]).replace("(", "").replace(")", "").replace(" ", "").replace("'", "").replace(",",", ")
+
+    return df
+
 ####
 #standardize the dataframe
 ####
@@ -264,93 +298,340 @@ std_order = ['molecule','number_of_atoms', 'database', 'file number', 'basis', '
              'learning rate', 'maxiter','miniter', 'method', 'best_f', 'best_df', 'best_dcnorm',
              'best_i', 'max_i', 'f_rtol',
              'initial_energy', 'ref_energy', 'opt_energy',
-             'initial_energy [hartree/atom]', 'ref_energy [hartree/atom]','optb_energy [hartree /atom]',
-             'ref-opb [hartree /atom]', 'ref-init [hartree /atom]']
+             'initial_energy [hartree/atom]', 'ref_energy [hartree/atom]','optb_energy [hartree/atom]',
+             'ref-opb [hartree/atom]', 'ref-init [hartree/atom]']
 
+#
+#
+# #####
+# #data one
+# #####
+#
+# path_one = "data/results_old.csv"
+#
+# df_one = pd.read_csv(path_one,index_col=0).reset_index(drop=True)
+#
+# #####
+# #data two
+# #####
+#
+# path_two = "data/results.csv"
+#
+# df_two = pd.read_csv(path_two,index_col=0).reset_index(drop=True)
+#
+# #############################
+#
+# df_one = reorder_df(df_one, df_two)
+# df_one_impact = calculate_impact(df_one)
+#
+#
+# df_one_best = get_best_res_mol(df_one, db = "w417", folder = "data", comment_scfnotconverged="old")
+# df_one_best = df_one_best[std_order]
+# df_one_best.to_csv("data/best_results_old_w417.csv", index=False)
+#
+# df_one_best = get_best_res_mol(df_one, db = "g2", folder = "data", comment_scfnotconverged="old")
+# df_one_best = df_one_best[std_order]
+# df_one_best.sort_values(by=["basis_variation", "number_of_atoms"], inplace=True)
+# df_one_best.to_csv("data/best_results_old_g2.csv", index=False)
+#
+#
+# df_two_impact = calculate_impact(df_two)
+#
+# df_one_impact ,df_two_impact = reorder_df(df_one_impact,df_two_impact)
+#
+# df_one_impact.sort_values(by=["basis_variation", "number_of_atoms"], inplace=True)
+# df_two_impact.sort_values(by=["basis_variation", "number_of_atoms"], inplace=True)
+#
+# df_two_impact.to_csv("data/results_new_impact.csv", index=False)
+# df_one_impact.to_csv("data/results_old_impact.csv", index=False)
+#
+# df_two_best = get_best_res_mol(df_two, db = "w417", folder = "data", comment_scfnotconverged="new")
+# df_two_best = df_two_best[std_order]
+# df_two_best.sort_values(by=["basis_variation", "number_of_atoms"], inplace=True)
+# df_two_best.to_csv("data/best_results_new_w417.csv", index=False)
 
-
-#####
-#data one
-#####
-path_one = "data/results_old.csv"
-
-df_one = pd.read_csv(path_one,index_col=0).reset_index(drop=True)
-
-#####
-#data two
-#####
-
-path_two = "data/results.csv"
-
-df_two = pd.read_csv(path_two,index_col=0).reset_index(drop=True)
 
 #############################
+# read the best results to calculate the average improvement in the energy
+#############################
 
-df_one = reorder_df(df_one, df_two)
-df_one_impact = calculate_impact(df_one)
+####
+# for all results merge the dataframes
+####
 
+df_old = pd.read_csv("data/best_results_old_w417.csv")
+df_new = pd.read_csv("data/best_results_new_w417.csv")
 
-df_one_best = get_best_res_mol(df_one, db = "w417", folder = "data", comment_scfnotconverged="old")
-df_one_best = df_one_best[std_order]
-df_one_best.to_csv("data/best_results_old_w417.csv", index=False)
+df_full = pd.concat([df_new, df_old]).reset_index(drop=True)
+df_full_mean = get_average_impact_bv(df_full)
 
-df_one_best = get_best_res_mol(df_one, db = "g2", folder = "data", comment_scfnotconverged="old")
-df_one_best = df_one_best[std_order]
-df_one_best.sort_values(by=["basis_variation", "number_of_atoms"], inplace=True)
-df_one_best.to_csv("data/best_results_old_g2.csv", index=False)
+####
+# for single molecules
+####
 
+df_old_imp = pd.read_csv("data/results_old_impact.csv")
+df_new_imp = pd.read_csv("data/results_new_impact.csv")
 
-df_two_impact = calculate_impact(df_two)
+df_imp_full = pd.concat([df_new_imp, df_old_imp]).reset_index(drop=True)
+print(df_imp_full.head())
 
-df_one_impact ,df_two_impact = reorder_df(df_one_impact,df_two_impact)
-
-df_one_impact.sort_values(by=["basis_variation", "number_of_atoms"], inplace=True)
-df_two_impact.sort_values(by=["basis_variation", "number_of_atoms"], inplace=True)
-
-df_two_impact.to_csv("data/results_new_impact.csv", index=False)
-df_one_impact.to_csv("data/results_old_impact.csv", index=False)
-
-df_two_best = get_best_res_mol(df_two, db = "w417", folder = "data", comment_scfnotconverged="new")
-df_two_best = df_two_best[std_order]
-df_two_best.sort_values(by=["basis_variation", "number_of_atoms"], inplace=True)
-df_two_best.to_csv("data/best_results_new_w417.csv", index=False)
-
-
-
-
-
-
-
-
-
+# fig = px.bar(df, x="basis_variation", y="mean energy difference [hartree/atom]",color="ref - init energy difference [hartree/atom]",barmode='group',
+#              title="Average impact of basis variation")
+# fig.update_layout(
+#     #xaxis_showticklabels=False,
+#     title_text="Average impact of basis variation",
+#     xaxis_title="Basis variation",
+#     yaxis_title="Average energy difference [Hartree/atom]",
+#     font=dict(
+#         family="Courier New, monospace",
+#         size=18,
+#         color="#000066"
+#     )
+# )
 
 
 
 
 
+def make_plots_basis_var(df):
+    df = normalize_basis_variation(df_full_mean)
+    print(df)
+    df.sort_values(by=["absolute difference [hartree/atom]"], ascending=False, inplace=True)
+    fig = go.Figure(data=[
+        go.Bar(name='mean energy difference between the reference and the optimised basis', x=df["basis_variation"],
+               y=df["mean energy difference [hartree/atom]"]),
+        go.Bar(name='mean energy difference between two basis sets', x=df["basis_variation"],
+               y=df["ref - init energy difference [hartree/atom]"])
+    ])
+    # Change the bar mode
+    fig.update_layout(barmode='group',
+                      title_text="Average impact of optimisation",
+                      xaxis_title="Basis variation",
+                      yaxis_title="Energy difference [Hartree/atom]",
+                      font=dict(
+                          family="Courier New, monospace",
+                          size=18,
+                          color="#000066"
+                      ),
+                      legend=dict(
+                          x=1.0,
+                          xanchor="right",
+                          y=1.0,
+                          traceorder="normal",
+                          font=dict(
+                              family="Courier New, monospace",
+                              size=18,
+                              color="#000066"
+                          ),
+                          bgcolor="LightSteelBlue",
+                          bordercolor="Black",
+                          borderwidth=2
+                      )
+                      )
+    # fig.write_html("data/avg_energy_bv.html")
+    fig.show()
+
+    #############################
+    # absolute difference in the energy
+    #############################
+
+    fig = px.bar(df, x="basis_variation", y="absolute difference [hartree/atom]",
+                 title="Absolute difference in the energy")
+
+    fig.update_layout(
+        # xaxis_showticklabels=False,
+        title_text="Absolute difference in the energy",
+        xaxis_title="Basis variation",
+        yaxis_title="Absolute difference [Hartree/atom]",
+        font=dict(
+            family="Courier New, monospace",
+            size=18,
+            color="#000066"
+        )
+    )
+    fig.show()
 
 
-# df_two_best = get_best_res_mol(df_two, db = "w417")
-# df_two_best.to_csv("evaluation/best_results_new_w417.csv", index=False)
+def plots_molecule(df_mol, molecule, **kwargs):
+
+    df = df_mol.loc[df_mol["molecule"] == molecule]
+
+    for k, v in kwargs.items():
+        df = df.loc[df[k] == v]
+
+    df = drop_wrong_learning(df)
+    df = drop_small_best_i(df, threshold=10)
+    df = remove_SCF_not_converged(df, threshold=10)
+    df = normalize_basis_variation(df)
+    blist = list(set(df["basis_variation"]))
+
+    fig = make_subplots(rows=2, cols=2,  # subplotting grid hardcoded
+                        shared_xaxes=True,
+                        vertical_spacing=0.1,
+                        subplot_titles=blist,
+                        x_title="Learning rate",
+                        y_title="Energy difference [Hartree/atom]")
+
+    print("len blist", len(blist))
+
+    for num,b in enumerate(blist):
+        df_b = df.loc[df["basis_variation"] == b]
+
+        if num == 0:
+            show_legend = True
+        else:
+            show_legend = False
+        if num == 0:
+            grid = {"row" : 1 , "col" : 1}
+        elif num == 1:
+            grid = {"row" : 1 , "col" : 2}
+        elif num == 2:
+            grid = {"row" : 2 , "col" : 1}
+        elif num == 3:
+            grid = {"row" : 2 , "col" : 2}
 
 
 
-# path = "/nfs/data-013/jaikinator/PycharmProjects/OptBasisSets/analyse_data/evaluation/best_results_w417.csv"
-# df = pd.read_csv(path,index_col=0).reset_index(drop=True)
-# df_mean = get_average_impact_bv(df)
-#
-# df_mean["mean energy difference [hartree/atom]"] = df_mean["mean energy difference [hartree/atom]"].abs()
-# df_mean["ref - init energy difference [hartree/atom]"] = df_mean["ref - init energy difference [hartree/atom]"].abs()
+        fig.append_trace(
+            go.Scatter(mode="markers+text", x=df_b["learning rate"], y=df_b["initial_energy [hartree/atom]"],
+                       name="initial energy", marker=dict(color="blue", size=20),
+                       legendgroup="initial energy", showlegend=show_legend),
+            **grid)
+        fig.append_trace(
+            go.Scatter(mode="markers+text", x=df_b["learning rate"], y=df_b["ref_energy [hartree/atom]"],
+                       name="reference energy", marker=dict(color="red", size=20),
+                       legendgroup="reference energy", showlegend=show_legend),
+            **grid)
+        fig.append_trace(
+            go.Scatter(mode="markers+text", x=df_b["learning rate"], y=df_b["optb_energy [hartree/atom]"],
+                       name="optimised energy", marker=dict(color="green", size=20),
+                       legendgroup="optimised energy", showlegend=show_legend),
+            **grid)
 
-# df_new = df[df["basis_variation"] == "('STO-3G', '3-21G')"]
-# df_new["diff of diff [hartree/atom]"] = df_new["ref-opb [hartree /atom]"] - df_new["ref-init [hartree /atom]"]
+        fig.update_xaxes(type="log", **grid)
+
+    fig.update_layout(
+            title_text="Energy of molecule {}".format(molecule),
+            title_x=0.5,
+            # xaxis_title="Learning rate",
+            xaxis_type="log",
+            # yaxis_title="Energy [Hartree/atom]",
+            legend=dict(
+                x=1.0,
+                xanchor="right",
+                y=1.0,
+                traceorder="normal"),
+            font=dict(
+                family="Courier New, monospace",
+                size=18,
+                color="#000066"
+            )
+        )
+    fig.show()
+
+
+
+
+
+
+
+
+
+
+plots_molecule(df_imp_full, "h2" , database = "w417" ,method = "adam")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#### check again what I done here
+# df_new = df_full[df_full["basis_variation"] == "('STO-3G', '3-21G')"]
+# df_new["diff of diff [hartree/atom]"] = df_new["ref-opb [hartree/atom]"] - df_new["ref-init [hartree/atom]"]
 # print(df_new)
 # fig1 = px.histogram(df_new, x="diff of diff [hartree/atom]", nbins=50)
 # fig1.show()
+
+
 #plotly bar plot with two y axis
 
-# fig1 = px.scatter(df_new, x="ref-opb [hartree /atom]", y="ref-init [hartree /atom]",
-#                  hover_name="molecule", hover_data= df.columns.values
+# fig1 = px.scatter(df_new, x="ref-opb [hartree/atom]", y="ref-init [hartree/atom]",
+#                  hover_name="molecule", hover_data= df_new.columns.values
 #                  ,color='method', size='number_of_atoms', marginal_x="histogram", marginal_y="histogram")
 # fig1.show()
 
