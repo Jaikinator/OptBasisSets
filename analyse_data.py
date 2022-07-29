@@ -14,13 +14,38 @@ import numpy as np
 from optb import loadatomstruc
 from optb.data.avdata import elg2 as g2, elw417 as w417
 import warnings
+import plotly.offline as py
 
 
 pd.set_option("display.max_rows", 1000)
 pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
 
+def filter_entry(df, **kwargs):
+    """
+    Filter the results.
+    :param df: dataframe with the results
+    :param kwargs: keyword arguments.
+    :return: pd.DataFrame.
+    """
+    df = df.copy()
+    for key, value in kwargs.items():
+        df = df[df[key] == value]
 
+    return df
+
+def normalize_basis_variation(df):
+    """
+    Normalize the basis variation str.
+    :param df: dataframe with the results
+    :return: pd.DataFrame.
+    """
+    df = df.copy()
+
+    for i in range(len(df)):
+       df.loc[i,"basis_variation"] = str(df.loc[i,"basis_variation"]).replace("(", "").replace(")", "").replace(" ", "").replace("'", "").replace(",",", ")
+
+    return df
 
 def calculate_impact(df):
     """
@@ -29,7 +54,7 @@ def calculate_impact(df):
     # create basis variation column
     basis_multi_index = pd.MultiIndex.from_frame(df[["basis", "ref. basis"]]).to_numpy()
     df["basis_variation"] = basis_multi_index
-
+    df = normalize_basis_variation(df) # normalize the basis variation str.
     # create nuber of atoms and db column
     number_of_atoms = np.ones(len(df))
     name_db = []
@@ -56,10 +81,15 @@ def drop_small_best_i(df, threshold = 10):
     """
     Drop results where the optimizer does not do enough steps.
     """
+    bvlist_bevor = set(df["basis_variation"])
     df_len = len(df)
     ind = df[df['best_i'] < threshold].index
     df.drop(ind, inplace=True)
     df.reset_index(drop=True, inplace=True)
+    bvlist_after = set(df["basis_variation"])
+    if len(bvlist_bevor) != len(bvlist_after):
+        warnings.warn("basis variation {} has been dropped since best_i < {}.".format(bvlist_bevor - bvlist_after,threshold))
+
     print(f"\n\tDropped {df_len - len(df)} results.\n")
     return df
 
@@ -277,18 +307,7 @@ def reorder_df(df1, df2):
         warnings.warn("The dataframe headers are not the standard ones. Only df1 will be changed.")
         return df1
 
-def normalize_basis_variation(df):
-    """
-    Normalize the basis variation str.
-    :param df: dataframe with the results
-    :return: pd.DataFrame.
-    """
-    df = df.copy()
 
-    for i in range(len(df)):
-       df.loc[i,"basis_variation"] = str(df.loc[i,"basis_variation"]).replace("(", "").replace(")", "").replace(" ", "").replace("'", "").replace(",",", ")
-
-    return df
 
 ####
 #standardize the dataframe
@@ -373,7 +392,7 @@ df_old_imp = pd.read_csv("data/results_old_impact.csv")
 df_new_imp = pd.read_csv("data/results_new_impact.csv")
 
 df_imp_full = pd.concat([df_new_imp, df_old_imp]).reset_index(drop=True)
-print(df_imp_full.head())
+
 
 # fig = px.bar(df, x="basis_variation", y="mean energy difference [hartree/atom]",color="ref - init energy difference [hartree/atom]",barmode='group',
 #              title="Average impact of basis variation")
@@ -451,29 +470,35 @@ def make_plots_basis_var(df):
     )
     fig.show()
 
-
 def plots_molecule(df_mol, molecule, **kwargs):
 
-    df = df_mol.loc[df_mol["molecule"] == molecule]
-
-    for k, v in kwargs.items():
-        df = df.loc[df[k] == v]
+    df = filter_entry(df_mol, molecule = molecule, **kwargs)
 
     df = drop_wrong_learning(df)
+
     df = drop_small_best_i(df, threshold=10)
+
     df = remove_SCF_not_converged(df, threshold=10)
+
     df = normalize_basis_variation(df)
     blist = list(set(df["basis_variation"]))
-
+    print(blist)
     fig = make_subplots(rows=2, cols=2,  # subplotting grid hardcoded
-                        shared_xaxes=True,
+                        shared_xaxes = False,
+                        shared_yaxes= True,
+                        horizontal_spacing=0.01,
                         vertical_spacing=0.1,
                         subplot_titles=blist,
+                        specs=[[{"type": "scatter", "l" : 0.01}, {"type": "scatter"}],
+                                 [{"type": "scatter", "l" : 0.01}, {"type": "scatter"}]],
                         x_title="Learning rate",
-                        y_title="Energy difference [Hartree/atom]")
+                        y_title="Energy difference [Hartree/atom]"
+                        )
+    fig.update_annotations(font_size=18)
 
-    print("len blist", len(blist))
 
+    row = 1
+    col = 1
     for num,b in enumerate(blist):
         df_b = df.loc[df["basis_variation"] == b]
 
@@ -481,25 +506,23 @@ def plots_molecule(df_mol, molecule, **kwargs):
             show_legend = True
         else:
             show_legend = False
-        if num == 0:
-            grid = {"row" : 1 , "col" : 1}
-        elif num == 1:
-            grid = {"row" : 1 , "col" : 2}
-        elif num == 2:
-            grid = {"row" : 2 , "col" : 1}
-        elif num == 3:
-            grid = {"row" : 2 , "col" : 2}
 
-
+        if num%2 == 0:
+            grid = {"row" : row , "col" : col}
+            col += 1
+        elif num%2 == 1:
+            grid = {"row" : row , "col" : col}
+            col = 1
+            row += 1
 
         fig.append_trace(
-            go.Scatter(mode="markers+text", x=df_b["learning rate"], y=df_b["initial_energy [hartree/atom]"],
-                       name="initial energy", marker=dict(color="blue", size=20),
-                       legendgroup="initial energy", showlegend=show_legend),
+            go.Scatter(mode="lines", x=df_b["learning rate"], y=df_b["initial_energy [hartree/atom]"],
+                       name="initial energy", marker=dict(color="blue", size=20), line = dict(color="blue", width=2),
+                       legendgroup="initial energy", showlegend=show_legend,connectgaps=True),
             **grid)
         fig.append_trace(
-            go.Scatter(mode="markers+text", x=df_b["learning rate"], y=df_b["ref_energy [hartree/atom]"],
-                       name="reference energy", marker=dict(color="red", size=20),
+            go.Scatter(mode="lines", x=df_b["learning rate"], y=df_b["ref_energy [hartree/atom]"],
+                       name="reference energy", marker=dict(color="red", size=20), line=dict(color="red", width=2),
                        legendgroup="reference energy", showlegend=show_legend),
             **grid)
         fig.append_trace(
@@ -508,38 +531,64 @@ def plots_molecule(df_mol, molecule, **kwargs):
                        legendgroup="optimised energy", showlegend=show_legend),
             **grid)
 
-        fig.update_xaxes(type="log", **grid)
+        fig.update_xaxes(type= "log",exponentformat = "power" ,
+                        showline=True, linewidth=1, linecolor='black',mirror=True,**grid)
+
+        fig.update_yaxes(title=None, tickfont = {"size": 15, "color": "#000066" , "family": "Courier New, monospace"},
+                         showline=True, linewidth=1, linecolor='black',mirror=True, **grid)
+
 
     fig.update_layout(
             title_text="Energy of molecule {}".format(molecule),
-            title_x=0.5,
-            # xaxis_title="Learning rate",
-            xaxis_type="log",
-            # yaxis_title="Energy [Hartree/atom]",
+
             legend=dict(
                 x=1.0,
                 xanchor="right",
                 y=1.0,
                 traceorder="normal"),
             font=dict(
-                family="Courier New, monospace",
+                family="Droid Sans",
                 size=18,
                 color="#000066"
             )
         )
-    fig.show()
+    #fig.show()
+
+def scatter_all_molecules(df_mol, **kwargs):
+
+    fig1 = px.scatter(df_mol, x="ref-opb [hartree/atom]", y="best_f",
+                      hover_name="molecule", hover_data=df_mol.columns.values
+                      , color='method', size='number_of_atoms', marginal_x="histogram", marginal_y="histogram")
+    fig1.update_layout(
+        title_text="Energy difference between reference and optimised basis set",
+        xaxis_title="Energy difference [Hartree/atom]",
+        # yaxis_title="Number of atoms",
+        font=dict(
+            family="Droid Sans",
+            size=18,
+            color="#000066"
+        ),
+        legend=dict(
+            x=1.0,
+            xanchor="right",
+            y=1.0,
+            traceorder="normal",
+            font=dict(
+                family="Droid Sans",
+                size=18,
+                color="#000066"
+            ),
+            bgcolor="LightSteelBlue",
+            bordercolor="Black",
+            borderwidth=2
+        )
+    )
+    fig1.show()
 
 
 
-
-
-
-
-
-
-
-plots_molecule(df_imp_full, "h2" , database = "w417" ,method = "adam")
-
+# plots_molecule(df_imp_full, "h2" , database = "w417" ,method = "adam")
+print(sorted(list(set(normalize_basis_variation(df_imp_full)["basis_variation"]))))
 
 
 
